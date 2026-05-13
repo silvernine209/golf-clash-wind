@@ -1,189 +1,192 @@
-# Golf Clash Wind — Rings-per-MPH Toolkit
+# Golf Clash Wind — rings per MPH
 
-Two ways to use the same verified wind formula:
+A mobile-first wind calculator for Golf Clash. Tap the wind speed and direction → see exactly how many rings to pull the bullseye, per club, in real time. Works offline once installed.
 
-1. **Web app** (recommended for during-play) — mobile-first, real-time rings calculator with bag manager. Lives in `index.html`. After GitHub Pages is enabled, opens at:
-   <https://silvernine209.github.io/golf-clash-ring-per-mph-generator/>
-2. **Python CLI** — generates a static markdown cheat-sheet from a YAML bag config. Lives in `generate.py`.
+**Open the app:** <https://silvernine209.github.io/golf-clash-ring-per-mph-generator/>
 
-Both use the same formula from the [Golf Clash Notebook source](https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala).
+![Play view](docs/screenshots/01-play-wide.png)
 
-## Web app
+---
 
-Open the URL on your phone → **Share → Add to Home Screen** to install as a PWA (works offline, full-screen, screen-stays-awake).
+## What it does
 
-- **Play screen**: tap MPH on the numpad, tap wind direction on the compass, tap ball power. Table 1 (normal clubs) and Table 2 (chip sliders) show live "rings to pull" — no calculator math, just read off the row.
-- **Bags screen** (⚙): create multiple bags. Each slot has manual `power` and `accuracy` so you can apply perk/card/mastery bonuses or penalties.
-- Pin distance input (optional) highlights the club whose range contains the pin.
-- 16-direction compass with auto crosswind factor: head/tail × 0.6, pure side × 1.0, smooth interpolation.
+- Tap a number on the wind speed pad
+- Tap the in-game wind arrow direction on the compass
+- Pick your ball power (0–5)
+- The table on the right shows **rings to pull** for every club in your bag — live, no math required
+- Wedge / Rough / Sand sliders let you read the chip ring count for any distance ≤ club power
 
-To run locally without GitHub Pages:
+The formula is the verified one from Golf Clash Notebook's open-source [wind.scala](https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala), including the 1.45× Rough Iron and 1.15× Sand Wedge category multipliers and the 0.9× correction for B52/Grizzly at level ≥ 5. The Python CLI in this repo and the web app both use the same formula.
 
-```bash
-cd "/Users/ml/Documents/Personal/Golf Clash"
-python3 -m http.server 8000
-# open http://localhost:8000 on your phone (same Wi-Fi)
+---
+
+## How to use it
+
+### 1. Open the link on your phone
+
+<https://silvernine209.github.io/golf-clash-ring-per-mph-generator/>
+
+On iPhone Safari: tap **Share** → **Add to Home Screen** and it installs as a full-screen app. Works offline after the first load. Screen stays awake while you're on the Play page.
+
+### 2. Set up your bag
+
+Tap the ⚙ gear in the top-left to open the **Bags** page.
+
+![Bags page](docs/screenshots/04-bags.png)
+
+You start with a sample "My Bag". Tap **Edit** to fill it with your actual clubs, or **+** in the top-right to make a new bag from scratch. You can have as many bags as you want (one for tournaments, one for daily, etc.). Each bag stores its own ball power preset.
+
+### 3. Pick your clubs
+
+In the editor, tap each slot's club dropdown:
+
+![Dropdown open](docs/screenshots/06-dropdown-open.png)
+
+- The list shows every club Golf Clash has had through 2024, each with its real icon
+- Tapping a club **auto-fills power and accuracy** at level 1
+- Change the level dropdown → power/accuracy refresh for that level
+- The power and accuracy fields are editable — **edit them after picking** to apply any perk bonuses or penalties from your in-game card mods
+- Newer clubs not in the list? Pick **"Custom / not in list…"** at the bottom and type any name/power/accuracy
+
+![Edit bag full page](docs/screenshots/05-edit-bag.png)
+
+The seven slots are: Driver, Wood, Long Iron, Short Iron, Wedge, Rough Iron, Sand Wedge — same as Golf Clash. Hit **Save** when done.
+
+### 4. Play
+
+Back on the main screen, when you set up a shot in Golf Clash:
+
+1. **Tap the wind speed** on the numpad — e.g. 12 MPH
+2. **Tap the compass** in the direction the in-game wind arrow points
+   - The 4 cardinal arrows (N/E/S/W) are red to find quickly
+   - Center button resets direction to pure side wind
+3. **Pick your ball power** if you're using a Power 1–5 ball
+4. **Read off the row** for the club you'll hit. The numbers under MIN / MID / MAX tell you how many rings to pull the bullseye into the wind:
+   - MAX = full slider (club's max distance)
+   - MID = halfway through the club's usable range
+   - MIN = where this club first appears (just above the shorter club's max)
+
+### 5. Use Shot distance for the exact answer
+
+If you'd rather not eyeball MIN/MID/MAX, type the in-game shot distance into the **Shot distance** input:
+
+![Play view with pin distance](docs/screenshots/02-play-with-pin.png)
+
+A recommendation card appears below Table 1 with:
+
+- which club to use,
+- the suggested slider %,
+- the exact rings to pull at *that* specific distance (not just MIN/MID/MAX),
+- and the math breakdown so you can sanity-check (`12 MPH × 0.89 × 0.60 dir = 6.4 rings`).
+
+The matching club row is also highlighted in green.
+
+### 6. Chip shots — use the slider
+
+For Wedge / Rough Iron / Sand Wedge shots, drag the slider in **Table 2** to match the slider position you'll use in-game. The live ring count updates as you drag.
+
+---
+
+## Works on phones, tablets, and desktop
+
+The layout adapts. On phone portrait it stacks vertically:
+
+![Mobile portrait](docs/screenshots/03-play-mobile.png)
+
+On iPad portrait or a desktop window the wind input and tables sit side-by-side.
+
+---
+
+## The formula (if you're curious)
+
+```
+rings_per_mph = actual_carry ÷ ( category_max
+                              × (3 − accuracy/50)
+                              × category_mult
+                              × rule_based_correction )
 ```
 
-## Python CLI
+| Term | What it is |
+|---|---|
+| `actual_carry` | yards the ball needs to travel (= power × slider%) |
+| `category_max` | Driver 240, Wood 180, Long Iron 135, Short Iron 90, Wedge 45, Rough Iron 135, Sand Wedge 120 |
+| `(3 − accuracy/50)` | base MPH-per-ring at full power and side wind (e.g., 100-acc = 1.0; 60-acc = 1.8) |
+| `category_mult` | 1.45 for Rough Iron, 1.15 for Sand Wedge, else 1.0 |
+| `rule_based_correction` | 0.9 for B52 / Grizzly at level ≥ 5, else 1.0 |
+| ball power coefficient | 1.00 / 1.03 / 1.05 / 1.07 / 1.10 / 1.13 — multiplies `actual_carry` |
+
+Final rings to pull = `rings_per_mph × wind_mph × direction_factor`. Direction factor is 1.0 for pure side wind, 0.6 for pure head/tail, interpolating with `0.6 + 0.4 × |sin(angle)|`.
+
+**Sources:**
+- [wind.scala (canonical formula)](https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala)
+- [Golf Clash Notebook — Wind](https://golfclashnotebook.io/wind/)
+- [AllClash Wind Calculator](https://www.allclash.com/golf-clash-wind-calculator-by-allclash/)
+- [West Games — using rings](https://west-games.com/golf-clash-how-to-use-the-rings/)
+
+---
+
+## Your data is private
+
+The app is **100% client-side**. There's no server, no account, no analytics. Everything lives in your browser's localStorage. Other people opening the link get their own blank slate; they can't see your bags and you can't see theirs. Clearing your browser data on the `silvernine209.github.io` origin resets the app.
+
+---
+
+## Run it yourself
+
+The whole web app is one `index.html` (plus club icons + a tiny service worker). Anyone can self-host:
 
 ```bash
-cd "/Users/ml/Documents/Personal/Golf Clash"
+git clone https://github.com/silvernine209/golf-clash-ring-per-mph-generator
+cd golf-clash-ring-per-mph-generator
+python3 -m http.server 8765
+# Open http://localhost:8765
+```
 
-# After upgrading or switching a club, edit my_bag.yaml then:
+GitHub Pages is the simplest free host — enable Pages on a fork's `main` branch and you've got your own copy.
+
+---
+
+## Python CLI (alternative)
+
+If you'd rather generate a static markdown cheat sheet from a YAML config:
+
+```bash
+# Edit my_bag.yaml with your clubs
 python3 generate.py
-
-# The cheat sheet prints to terminal AND writes to cheatsheet.md.
+# Writes cheatsheet.md
 ```
 
-## Files
+Same formula as the web app. Useful for keeping a long-term-versioned record of your bag in git, or piping into other tooling.
 
-| File                    | What it is                                                                   |
-|-------------------------|------------------------------------------------------------------------------|
-| `index.html`            | The web app (single file, no build). Open in browser or via static host.     |
-| `clubs.js`              | Embedded catalog used by the web app (generated by `build_clubs_js.py`).     |
-| `manifest.webmanifest`  | PWA manifest.                                                                |
-| `sw.js`                 | Service worker for offline install.                                          |
-| `icons/`                | PWA icons (generated by `build_icons.py`).                                   |
-| `my_bag.yaml`           | Bag config used by the Python CLI. **Edit this** for the CLI path.           |
-| `generate.py`           | CLI: reads `my_bag.yaml`, writes `cheatsheet.md`.                            |
-| `cheatsheet.md`         | Output of the CLI.                                                           |
-| `clubs.csv`             | All clubs × levels flattened (canonical data).                               |
-| `build_csv.py`          | Rebuilds `clubs.csv` from the cached YAML files.                             |
-| `build_clubs_js.py`     | Rebuilds `clubs.js` from `clubs.csv` (for the web app).                      |
-| `build_icons.py`        | Generates PWA icons.                                                         |
-| `*.yaml` (clubs)        | Cached Golf Clash Notebook club data (drivers, woods, …). Don't edit.        |
+---
 
-## How to use the cheat sheet
+## Files in this repo
 
-The values in `cheatsheet.md` are **rings per MPH of wind**.
+| File / folder | Purpose |
+|---|---|
+| `index.html` | The web app (single file, no build) |
+| `clubs.js` | Embedded catalog: 61 clubs with stats at every level, generated from `clubs.csv` |
+| `icons/clubs/*.png` | 64×64 club artwork (MIT-licensed from Golf Clash Notebook) |
+| `manifest.webmanifest`, `sw.js` | PWA manifest + offline service worker |
+| `my_bag.yaml` | Bag config for the Python CLI |
+| `generate.py` | CLI: reads `my_bag.yaml`, writes `cheatsheet.md` |
+| `clubs.csv` + `*.yaml` (per category) | Canonical club data |
+| `build_clubs_js.py` | Rebuilds `clubs.js` from `clubs.csv` |
+| `build_club_icons.py` | Fetches club icons from the GCN repo (idempotent) |
+| `build_icons.py` | Generates the PWA app icons |
+| `build_screenshots.py` | Regenerates the screenshots in this README |
+| `docs/screenshots/` | The PNGs embedded above |
 
-```
-rings to pull bullseye = wind_mph × cell_value
-```
+---
 
-**Example:** Driver MAX = 0.96, 7 MPH side wind → pull bullseye `7 × 0.96 ≈ 6.7 rings` into the wind.
+## Caveats
 
-**Headwind / tailwind:** in-game H/T winds have about **60%** of the side-wind effect. Multiply the cell value by ~0.6 for pure H/T. (Diagonal winds use a vector component, ~0.7–0.85.)
+- **2018-era club data.** GCN's catalog hasn't been updated since 2018. New clubs released after that aren't in the list — use the "Custom / not in list…" option. Stats for older clubs that have been balance-patched may also have drifted; the per-slot **power / accuracy override** fields handle that.
+- **Head/tail wind reduction.** Real Golf Clash reduces head/tail wind's ring effect to ~60% of pure crosswind. The app interpolates: 1.0 at pure side, 0.6 at pure head/tail.
+- **Wedge / Rough / Sand are situational.** The Shot-distance recommendation defaults to Wedge for chip-range distances. If you're in rough or sand, adjust the slider on the matching row of Table 2 — same slider % carries over.
 
-## How `my_bag.yaml` works
+---
 
-For each of the 7 club slots, put your **actual in-game power and accuracy** — including any perk / card / mastery / chest bonuses or penalties. These are the values the script uses:
+## Credits
 
-```yaml
-  Drivers:
-    name: Quarterback
-    level: 8
-    power: 231          # perk-boosted (GCN base at lvl 8 = 214)
-    accuracy: 100
-
-  LongIrons:
-    name: Grizzly
-    level: 5
-    power: 122
-    accuracy: 60        # perk-reduced -36 (GCN base = 96)
-```
-
-**MIN values propagate from these stats**, so if a perk changes your Wood's power, the Driver's MIN row updates automatically.
-
-`name` and `level` are only used as a fallback if you omit `power` / `accuracy` — they'll look up GCN's cached value. Old names `power_override` / `accuracy_override` still work.
-
-**New clubs** (not in GCN's 2018 data): pick any `name`, set `level: 1`, and just specify `power` and `accuracy`.
-
-### Ball power
-
-```yaml
-ball_power: 0   # 0..5
-```
-
-`0` = no ball, `5` = Power 5 ball. Each step adds ~3% to actual carry → multiplies every cell by the same coefficient (1.00, 1.03, 1.05, 1.07, 1.10, 1.13).
-
-## The formula (what the script does)
-
-From the open-source Golf Clash Notebook `wind.scala`:
-
-```
-MPH per ring = (1 + (100 - accuracy) × 0.02)         ← base accuracy term
-              × category_multiplier                    ← 1.45 Rough Iron, 1.15 Sand Wedge, else 1.0
-              ÷ (actual_carry / category_max)          ← distance scaling
-              × rule_based_correction                  ← 0.9 for B52/Grizzly at level ≥ 5
-```
-
-Inverted to rings per MPH (what we want):
-
-```
-rings_per_mph = actual_carry
-                ÷ ( category_max
-                    × (3 − accuracy/50)
-                    × category_multiplier
-                    × rule_based_correction )
-```
-
-Note: `1 + (100 − acc) × 0.02` ≡ `3 − acc/50`. Same formula, two notations.
-
-### Constants
-
-| Category    | category_max (yd) | category_mult |
-|-------------|------------------:|--------------:|
-| Drivers     | 240               | 1.00          |
-| Woods       | 180               | 1.00          |
-| LongIrons   | 135               | 1.00          |
-| ShortIrons  | 90                | 1.00          |
-| Wedges      | 45                | 1.00          |
-| RoughIrons  | 135               | **1.45**      |
-| SandWedges  | 120               | **1.15**      |
-
-### Rule-based correction
-
-Clubs whose name contains `b52` or `grizzly` at level ≥ 5 → multiply MPH/ring by `0.9`, which **raises rings/MPH by ~11%**. Applied automatically.
-
-### `actual_carry` per table cell
-
-**Normal clubs** (Drivers / Woods / Long Irons / Short Irons):
-
-- **MAX** = the club's own power (full slider)
-- **MIN** = your next-shorter club's power (where this club first appears as you scroll up). Bag-specific — changes when you upgrade a shorter club.
-- **MID** = (MIN + MAX) / 2
-
-**Chip clubs** (Wedges / Rough Irons / Sand Wedges):
-
-- **MAX rings/MPH** computed at full power (slider 100%).
-- Other slider rows = MAX × slider% (since `actual_carry = power × slider%` cancels through).
-
-## Sources
-
-- **Golf Clash Notebook source code** (the formula):
-  [wind.scala on GitHub](https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala)
-- **Club data** (cached YAMLs in this folder):
-  [data/clubs/](https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/tree/dev/modules/site/src/main/resources/microsite/data/clubs)
-- Golf Clash Notebook site: <https://golfclashnotebook.io/wind/>
-- AllClash Wind Calculator: <https://www.allclash.com/golf-clash-wind-calculator-by-allclash/>
-- West Games — rings explanation: <https://west-games.com/golf-clash-how-to-use-the-rings/>
-
-## Caveats / known gotchas
-
-- **GCN data is from 2018.** Quarterback's power and Grizzly's accuracy at given levels differ in the current game — use the override fields when you spot a mismatch.
-- **Head/tail winds** are reduced ~40% vs side winds; tables show side-wind values.
-- **Tournament conditions** (rain, cold, heat) further modify carry but aren't modeled here.
-- **MIN values are bag-specific.** Upgrade your Wood and the Driver MIN shifts up.
-- **Rounding:** cells rounded to 2 decimals to match standard cheat-sheet style.
-
-## How to refresh club data from GCN (optional)
-
-GCN's GitHub repo is stale but the YAML pull is still useful as a baseline. If the repo gets updated or you want to refresh:
-
-```bash
-cd "/Users/ml/Documents/Personal/Golf Clash"
-for cat in drivers woods longirons shortirons wedges roughirons sandwedges; do
-  curl -sL "https://raw.githubusercontent.com/golf-clash-notebook/golf-clash-notebook.github.io/dev/modules/site/src/main/resources/microsite/data/clubs/${cat}.yaml" -o "${cat}.yaml"
-done
-python3 build_csv.py   # rebuilds clubs.csv
-```
-
-## Replicating across sessions (asking Claude)
-
-You don't have to use the script. If you'd rather just ask:
-
-> "Update my Golf Clash cheat sheet. My bag is in `~/Documents/Personal/Golf Clash/my_bag.yaml`."
-
-I'll read the bag and regenerate. The toolkit just makes it self-serve so you don't need me for routine refreshes.
+Club artwork, club stats, and the canonical formula come from the open-source [Golf Clash Notebook](https://golfclashnotebook.io/) project (MIT-licensed). The wind calculator UI, mobile-first layout, custom dropdown, and data model in this repo are original.
