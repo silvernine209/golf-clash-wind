@@ -57,28 +57,38 @@
       display: flex; flex-direction: column; gap: 10px; min-width: 0;
     }
 
-    /* Medium (600–899): wrappers go invisible via display:contents so the
-       cards become direct grid items, placed via data-area. wind on the
-       left top spans 2 rows, compass + ballpower stack on right top,
-       tables full width below. */
+    /* Medium (600–899): wind on the left top, compass + vertical ball
+       power side-by-side on the right top (same idea as wide). Tables
+       full width below. play-input-col / play-tables-col go invisible
+       via display:contents so they don't participate in the grid;
+       cb-pair stays as a flex container that occupies the "cb" area. */
     @media (min-width: 600px) and (max-width: 899px) {
       .play-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-areas:
-          "wind compass"
-          "wind ballpower"
+          "wind cb"
+          "wind cb"
           "t1   t1"
           "t2   t2";
         gap: 10px;
         align-items: start;
       }
-      .play-input-col, .play-tables-col, .cb-pair { display: contents; }
-      .card[data-area="wind"]      { grid-area: wind; }
-      .card[data-area="compass"]   { grid-area: compass; }
-      .card[data-area="ballpower"] { grid-area: ballpower; }
-      .card[data-area="t1"]        { grid-area: t1; }
-      .card[data-area="t2"]        { grid-area: t2; }
+      .play-input-col, .play-tables-col { display: contents; }
+      .cb-pair {
+        display: flex; flex-direction: row; gap: 10px;
+        grid-area: cb; align-items: stretch;
+      }
+      .cb-pair > .compass-wrap { flex: 1; min-width: 0; }
+      .cb-pair > .bp-card { width: 88px; flex: 0 0 88px; padding: 10px 8px; }
+      .cb-pair .ball-power { flex-direction: column; gap: 4px; align-items: stretch; }
+      .cb-pair .bp-header { flex-direction: column; align-items: flex-start;
+        gap: 0; margin-bottom: 6px; }
+      .cb-pair .bp-header .caption { display: none; }
+      .cb-pair .ball-power .chip { width: 100%; padding: 4px 6px; min-width: 0; }
+      .card[data-area="wind"] { grid-area: wind; }
+      .card[data-area="t1"]   { grid-area: t1; }
+      .card[data-area="t2"]   { grid-area: t2; }
     }
 
     /* Wide (>= 900): two independent flex columns so tables auto-size
@@ -165,14 +175,17 @@
     .numpad button:active { transform: scale(0.95); background: var(--accent-soft); }
     .numpad .clr { color: var(--warn); font-size: 15px; }
 
-    /* Compass */
+    /* Compass — tight padding so the dial isn't floating in empty space */
     .compass-wrap { display: flex; flex-direction: column; align-items: center;
-      gap: 2px; padding: 8px 8px 10px; }
+      justify-content: center; gap: 2px; padding: 6px 6px 8px; }
     .compass {
-      width: 180px; height: 180px; max-width: 70vw; max-height: 70vw;
+      width: 170px; height: 170px; max-width: 70vw; max-height: 70vw;
       display: block;
     }
+    @media (min-width: 600px) { .compass { width: 180px; height: 180px; } }
     @media (min-width: 900px) { .compass { width: 200px; height: 200px; } }
+    .compass-hint { font-size: 10px; color: var(--text-dim); text-align: center;
+      line-height: 1.25; margin-top: 2px; }
     .compass-dir { font-weight: 600; font-size: 13px; margin-top: 2px; }
     .arrow-btn { fill: var(--text-dim); cursor: pointer; transition: fill 100ms; }
     .arrow-btn:hover { fill: var(--text); }
@@ -438,7 +451,7 @@
             <div class="card compass-wrap" data-area="compass">
               <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
               <div class="compass-dir small dim" id="compass-dir">side wind</div>
-              <div class="tiny dim" style="text-align:center;">tap where the in-game wind arrow points · center = side</div>
+              <div class="compass-hint">tap = wind direction · center = side</div>
             </div>
 
             <div class="card bp-card" data-area="ballpower">
