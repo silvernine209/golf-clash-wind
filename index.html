@@ -253,6 +253,65 @@
     .slot .custom-name { margin-top: 6px; width: 100%; padding: 8px; border-radius: 8px;
       background: var(--surface-2); border: 1px solid var(--border); font-size: 14px; }
 
+    /* Club images — circular icon next to club name */
+    .club-img-sm {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--surface-2); object-fit: cover;
+      flex: 0 0 auto; vertical-align: middle;
+      border: 1px solid var(--border);
+    }
+    .club-img-tiny { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2);
+      object-fit: cover; flex: 0 0 auto; border: 1px solid var(--border); }
+    .club-img-empty { display: inline-block; }
+    .club-cell { display: flex; align-items: center; gap: 8px; }
+
+    /* Bag list club strip */
+    .bag-club-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .bag-club-strip img { width: 22px; height: 22px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border); object-fit: cover; }
+    .bag-club-strip .miss { width: 22px; height: 22px; border-radius: 50%;
+      background: var(--surface-2); border: 1px dashed var(--border); display: inline-block; }
+
+    /* Custom dropdown for bag edit (so we can show club images per option) */
+    .cs { position: relative; }
+    .cs-trigger {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 6px 10px; min-height: 42px; border-radius: 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      font: inherit; color: inherit; text-align: left;
+    }
+    .cs-trigger:active { background: var(--accent-soft); }
+    .cs-icon {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface); object-fit: cover;
+      flex: 0 0 auto; border: 1px solid var(--border);
+    }
+    .cs-icon-empty {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface); border: 1px dashed var(--border);
+      flex: 0 0 auto; display: inline-block;
+    }
+    .cs-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; font-size: 14px; }
+    .cs-arrow { color: var(--text-dim); font-size: 11px; flex: 0 0 auto; }
+    .cs-menu {
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      z-index: 50; max-height: 320px; overflow-y: auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+      padding: 4px;
+    }
+    .cs-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      font-size: 14px;
+    }
+    .cs-item:hover { background: var(--accent-soft); }
+    .cs-item.selected { background: var(--accent); color: white; }
+    .cs-item.selected .cs-icon, .cs-item.selected .cs-icon-empty { border-color: rgba(255,255,255,0.4); }
+    .cs-placeholder { color: var(--text-dim); font-style: italic; }
+    .cs-item.selected .cs-placeholder { color: rgba(255,255,255,0.85); }
+
     .fab {
       position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 14px);
       transform: translateX(-50%);
@@ -402,18 +461,21 @@
       Wedges:"Wedge", RoughIrons:"Rough Iron", SandWedges:"Sand Wedge"
     };
 
+    // Club names must match the catalog keys in window.CLUBS so they
+    // resolve to the right images and stat lookups. (GCN data uses
+    // "The Quarterback", "Nirvana" without "The", etc.)
     const SEED_BAG = {
       id: "bag-default",
       name: "My Bag",
       ballPower: 0,
       slots: {
-        Drivers:    { name:"Quarterback", level:8, power:231, accuracy:100 },
-        Woods:      { name:"Sniper",      level:7, power:166, accuracy:100 },
-        LongIrons:  { name:"Grizzly",     level:5, power:122, accuracy:60  },
-        ShortIrons: { name:"Hornet",      level:4, power:84,  accuracy:91  },
-        Wedges:     { name:"Endbringer",  level:3, power:41,  accuracy:79  },
-        RoughIrons: { name:"Nirvana",     level:4, power:123, accuracy:74  },
-        SandWedges: { name:"Malibu",      level:6, power:101, accuracy:96  },
+        Drivers:    { name:"The Quarterback", level:8, power:231, accuracy:100 },
+        Woods:      { name:"The Sniper",      level:7, power:166, accuracy:100 },
+        LongIrons:  { name:"The Grizzly",     level:5, power:122, accuracy:60  },
+        ShortIrons: { name:"The Hornet",      level:4, power:84,  accuracy:91  },
+        Wedges:     { name:"The Endbringer",  level:3, power:41,  accuracy:79  },
+        RoughIrons: { name:"Nirvana",         level:4, power:123, accuracy:74  },
+        SandWedges: { name:"The Malibu",      level:6, power:101, accuracy:96  },
       }
     };
 
@@ -433,7 +495,30 @@
         LS.set("gc.bags", bags);
         LS.set("gc.activeBagId", bags[0].id);
       }
+      // Migrate older saves: tolerate names stored without/with "The "
+      // prefix that don't match the catalog exactly.
+      migrateBagNames(bags);
       return bags;
+    }
+
+    // For each slot, if the name doesn't match a catalog key, try the
+    // "The "-prefixed / -stripped variant and rewrite to the canonical
+    // form so icons and stat lookups work.
+    function migrateBagNames(bags) {
+      let changed = false;
+      for (const bag of bags || []) {
+        for (const cat of ALL_CATS) {
+          const slot = bag.slots?.[cat];
+          if (!slot?.name) continue;
+          const cat2 = cat;
+          const catalog = window.CLUBS?.[cat2];
+          if (!catalog || catalog[slot.name]) continue;
+          if (catalog["The " + slot.name]) { slot.name = "The " + slot.name; changed = true; continue; }
+          const stripped = slot.name.replace(/^The\s+/i, "");
+          if (catalog[stripped]) { slot.name = stripped; changed = true; continue; }
+        }
+      }
+      if (changed) saveBags(bags);
     }
     function saveBags(bags) { LS.set("gc.bags", bags); }
     function setActiveId(id) { LS.set("gc.activeBagId", id); state.activeId = id; }
@@ -510,6 +595,20 @@
     function fmt(x) { return (Math.round(x * 10) / 10).toFixed(1); }
     function uid() { return "bag-" + Math.random().toString(36).slice(2, 9); }
     function parseNum(v) { const n = parseFloat(v); return isFinite(n) ? n : 0; }
+
+    // Compute icon URL using GCN's naming convention: strip leading "The "
+    // and remove non-alphanumerics. Returns "" for unknown / custom names.
+    function clubImg(name) {
+      if (!name || name === "__custom__") return "";
+      const key = String(name).replace(/^The\s+/i, "").replace(/[^A-Za-z0-9]/g, "");
+      return key ? `icons/clubs/${key}.png` : "";
+    }
+    function clubImgTag(name, cls = "club-img-sm") {
+      const src = clubImg(name);
+      if (!src) return `<span class="${cls} club-img-empty"></span>`;
+      return `<img class="${cls}" src="${src}" alt="" loading="lazy"
+        onerror="this.outerHTML='&lt;span class=&quot;${cls} club-img-empty&quot;&gt;&lt;/span&gt;'">`;
+    }
 
     // ============================ Renderers ================================
     function renderPlay() {
@@ -647,7 +746,7 @@
         const inRange = rec.matchedCat === cat;
         rows += `
           <tr class="${inRange ? "in-range" : ""}">
-            <td>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</td>
+            <td><div class="club-cell">${clubImgTag(s.name)}<span>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</span></div></td>
             <td class="dim mono">${s.accuracy}</td>
             <td class="dim mono">${s.power}</td>
             <td class="ring-cell min mono">${fmt(rMin)}</td>
@@ -670,7 +769,7 @@
         html += `
           <div class="chip-row" data-cat="${cat}">
             <div class="top">
-              <div class="name grow">${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</div>
+              <div class="name grow"><div class="club-cell">${clubImgTag(s.name)}<span>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</span></div></div>
               <div class="pct mono">${sliderPct.toFixed(0)}%</div>
               <div class="live mono">0.0</div>
             </div>
@@ -715,6 +814,13 @@
       list.innerHTML = state.bags.map(b => {
         const isActive = b.id === state.activeId;
         const totalPower = ALL_CATS.reduce((s,c) => s + (b.slots[c]?.power || 0), 0);
+        const strip = ALL_CATS.map(cat => {
+          const n = b.slots[cat]?.name;
+          const src = clubImg(n);
+          return src
+            ? `<img src="${src}" title="${DISPLAY[cat]} — ${escapeHtml(n || '')}" alt="" loading="lazy" onerror="this.outerHTML='&lt;span class=&quot;miss&quot;&gt;&lt;/span&gt;'">`
+            : `<span class="miss" title="${DISPLAY[cat]}: (not set)"></span>`;
+        }).join("");
         return `
           <div class="bag-card ${isActive ? "active" : ""}">
             <div class="name-line">
@@ -722,6 +828,7 @@
               ${isActive ? `<span class="pill on">active</span>` : ""}
             </div>
             <div class="small dim">ball power ${b.ballPower} · total club power ${totalPower}</div>
+            <div class="bag-club-strip">${strip}</div>
             <div class="actions">
               <button onclick="GC.setActive('${b.id}')">${isActive ? "✓ active" : "Set active"}</button>
               <button class="primary" onclick="GC.editBag('${b.id}')">Edit</button>
@@ -742,23 +849,38 @@
         const s = bag.slots[cat] || {};
         const catClubs = window.CLUBS[cat] || {};
         const known = Object.prototype.hasOwnProperty.call(catClubs, s.name);
-        // club dropdown — group by tier hint via the data we have (just name)
-        const nameOpts = `
-          <option value="" ${!s.name ? "selected" : ""}>— select club —</option>
-          ${Object.keys(catClubs).map(n => `<option value="${escapeHtml(n)}" ${n === s.name ? "selected" : ""}>${escapeHtml(n)}</option>`).join("")}
-          <option value="__custom__" ${s.name && !known ? "selected" : ""}>Custom / not in list…</option>
-        `;
+        const isCustom = !!(s.name && !known);
+        const currentValue = isCustom ? "__custom__" : (s.name || "");
+        const triggerLabel = isCustom
+          ? "Custom / not in list…"
+          : (s.name || "— select club —");
         const cluLevels = (catClubs[s.name]?.power || []).length || 10;
         const levelOpts = Array.from({length: cluLevels}, (_, i) => i + 1)
           .map(l => `<option ${l === s.level ? "selected" : ""}>${l}</option>`).join("");
-        const customRow = s.name && !known
+        const menuItems = [
+          `<div class="cs-item${!currentValue ? ' selected' : ''}" data-val=""><span class="cs-icon-empty"></span><span class="cs-placeholder">— select club —</span></div>`,
+          ...Object.keys(catClubs).map(n => `
+            <div class="cs-item${n === currentValue ? ' selected' : ''}" data-val="${escapeHtml(n)}">
+              ${clubImgTag(n, 'cs-icon')}
+              <span>${escapeHtml(n)}</span>
+            </div>`),
+          `<div class="cs-item${currentValue === '__custom__' ? ' selected' : ''}" data-val="__custom__"><span class="cs-icon-empty"></span><span>Custom / not in list…</span></div>`
+        ].join("");
+        const customRow = isCustom
           ? `<input type="text" class="custom-name" placeholder="custom club name" value="${escapeHtml(s.name)}" data-field="customName">`
           : `<input type="text" class="custom-name" placeholder="custom club name" value="" data-field="customName" style="display:none;">`;
         return `
           <div class="slot" data-cat="${cat}">
             <div class="label">${DISPLAY[cat]}</div>
             <div class="grid">
-              <select data-field="name">${nameOpts}</select>
+              <div class="cs" data-field="name" data-value="${escapeHtml(currentValue)}">
+                <button type="button" class="cs-trigger">
+                  ${isCustom ? `<span class="cs-icon-empty"></span>` : clubImgTag(s.name, 'cs-icon')}
+                  <span class="cs-label">${escapeHtml(triggerLabel)}</span>
+                  <span class="cs-arrow">▾</span>
+                </button>
+                <div class="cs-menu" hidden>${menuItems}</div>
+              </div>
               <select data-field="level">${levelOpts}</select>
               <input type="number" placeholder="power" value="${s.power ?? ""}" data-field="power" min="0" inputmode="numeric">
               <input type="number" placeholder="acc" value="${s.accuracy ?? ""}" data-field="accuracy" min="0" max="100" inputmode="numeric">
@@ -770,23 +892,20 @@
       // wire up auto-fill on name/level change
       $$("#edit-slots .slot").forEach(slot => {
         const cat = slot.dataset.cat;
-        const nameI   = slot.querySelector('[data-field=name]');
+        const cs      = slot.querySelector('.cs[data-field=name]');
         const lvlI    = slot.querySelector('[data-field=level]');
         const pwrI    = slot.querySelector('[data-field=power]');
         const accI    = slot.querySelector('[data-field=accuracy]');
         const customI = slot.querySelector('[data-field=customName]');
 
-        const showCustom = () => {
-          customI.style.display = "";
-          customI.focus();
-        };
+        const getName = () => cs.dataset.value || "";
+        const showCustom = () => { customI.style.display = ""; setTimeout(() => customI.focus(), 0); };
         const hideCustom = () => { customI.style.display = "none"; };
 
         const fillFromCatalog = (forceLevel) => {
-          const name = nameI.value;
+          const name = getName();
           const cdata = window.CLUBS[cat]?.[name];
           if (!cdata) return;
-          // refresh level dropdown range to match this club's max level
           const lvls = cdata.power.length;
           if (lvlI.options.length !== lvls) {
             const cur = Math.min(forceLevel ?? +lvlI.value ?? 1, lvls);
@@ -799,11 +918,36 @@
           accI.value = cdata.accuracy[idx];
         };
 
-        nameI.addEventListener("change", () => {
-          if (nameI.value === "__custom__") {
+        // Custom dropdown wiring
+        const trigger = cs.querySelector('.cs-trigger');
+        const menu = cs.querySelector('.cs-menu');
+        trigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          // Close any other open menu first
+          $$(".cs-menu").forEach(m => { if (m !== menu) m.hidden = true; });
+          menu.hidden = !menu.hidden;
+        });
+        menu.addEventListener("click", (e) => {
+          const item = e.target.closest(".cs-item");
+          if (!item) return;
+          e.stopPropagation();
+          const val = item.dataset.val;
+          cs.dataset.value = val;
+          // refresh selected state
+          menu.querySelectorAll(".cs-item").forEach(i => i.classList.toggle("selected", i === item));
+          // refresh trigger
+          const triggerLabel = val === "__custom__"
+            ? "Custom / not in list…"
+            : (val || "— select club —");
+          const triggerIcon = val === "__custom__" || !val
+            ? `<span class="cs-icon-empty"></span>`
+            : clubImgTag(val, 'cs-icon');
+          trigger.innerHTML = `${triggerIcon}<span class="cs-label">${escapeHtml(triggerLabel)}</span><span class="cs-arrow">▾</span>`;
+          menu.hidden = true;
+          // Apply side effects
+          if (val === "__custom__") {
             showCustom();
-            // don't autofill power/acc — user types their own
-          } else if (nameI.value === "") {
+          } else if (val === "") {
             hideCustom();
             pwrI.value = "";
             accI.value = "";
@@ -812,10 +956,20 @@
             fillFromCatalog(1);
           }
         });
+
         lvlI.addEventListener("change", () => {
-          if (nameI.value && nameI.value !== "__custom__") fillFromCatalog();
+          const name = getName();
+          if (name && name !== "__custom__") fillFromCatalog();
         });
       });
+
+      // Outside click closes any open dropdown menu
+      if (!window.__csClickWired) {
+        document.addEventListener("click", () => {
+          $$("#edit-slots .cs-menu").forEach(m => m.hidden = true);
+        });
+        window.__csClickWired = true;
+      }
     }
 
     // ============================ Mutations ================================
@@ -863,7 +1017,9 @@
       $$("#edit-slots .slot").forEach(slot => {
         const cat = slot.dataset.cat;
         const get = (f) => slot.querySelector(`[data-field=${f}]`)?.value || "";
-        const selected = get("name");
+        // club name lives in the custom dropdown's dataset
+        const cs = slot.querySelector('.cs[data-field=name]');
+        const selected = cs ? cs.dataset.value : "";
         const name = (selected === "__custom__")
           ? (get("customName").trim() || "Custom")
           : (selected || "Unknown");
