@@ -1,0 +1,57 @@
+# My Golf Clash bag — edit this when you upgrade, switch, or change perks.
+# Then run:  python3 generate.py
+#
+# `power` and `accuracy` are your ACTUAL in-game stats, AFTER any
+# perk / card / mastery / chest bonus adjustments. They override the
+# cached Golf Clash Notebook data (which is from 2018 and may differ).
+#
+# MIN values for normal clubs propagate from the shorter club's `power`
+# in this file — so a perk-boosted Wood automatically raises the Driver MIN.
+#
+# `name` and `level` are only used to look up backup stats if you omit
+# power/accuracy. You can otherwise label them however you want.
+
+ball_power: 0   # 0..5 — ball power coefficient (1.00, 1.03, 1.05, 1.07, 1.10, 1.13)
+
+clubs:
+  Drivers:
+    name: Quarterback
+    level: 8
+    power: 231          # perk-boosted (GCN base at lvl 8 = 214)
+    accuracy: 100
+
+  Woods:
+    name: Sniper
+    level: 7
+    power: 166
+    accuracy: 100
+
+  LongIrons:
+    name: Grizzly
+    level: 5
+    power: 122
+    accuracy: 60        # perk-reduced -36 (GCN base at lvl 5 = 96)
+
+  ShortIrons:
+    name: Hornet
+    level: 4
+    power: 84
+    accuracy: 91
+
+  Wedges:
+    name: Endbringer
+    level: 3
+    power: 41
+    accuracy: 79
+
+  RoughIrons:
+    name: Nirvana
+    level: 4
+    power: 123
+    accuracy: 74
+
+  SandWedges:
+    name: Malibu
+    level: 6
+    power: 101
+    accuracy: 96
