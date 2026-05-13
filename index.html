@@ -49,46 +49,58 @@
       overscroll-behavior-y: contain;
     }
     main { max-width: 1100px; margin: 0 auto; padding: 12px 12px 32px; }
-    /* Single column on the narrowest screens */
-    .play-grid {
-      display: grid; gap: 10px; align-items: start;
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "wind"
-        "compass"
-        "ballpower"
-        "t1"
-        "t2";
+
+    /* Narrow (< 600): everything stacks. play-input-col, play-tables-col
+       and cb-pair are flex columns that hold their children inline. */
+    .play-grid { display: flex; flex-direction: column; gap: 10px; }
+    .play-input-col, .play-tables-col, .cb-pair {
+      display: flex; flex-direction: column; gap: 10px; min-width: 0;
     }
-    /* Medium: wind | (compass+ballpower) at top, tables full width below */
-    @media (min-width: 600px) {
+
+    /* Medium (600–899): wrappers go invisible via display:contents so the
+       cards become direct grid items, placed via data-area. wind on the
+       left top spans 2 rows, compass + ballpower stack on right top,
+       tables full width below. */
+    @media (min-width: 600px) and (max-width: 899px) {
       .play-grid {
+        display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-areas:
           "wind compass"
           "wind ballpower"
-          "t1 t1"
-          "t2 t2";
+          "t1   t1"
+          "t2   t2";
+        gap: 10px;
+        align-items: start;
       }
+      .play-input-col, .play-tables-col, .cb-pair { display: contents; }
+      .card[data-area="wind"]      { grid-area: wind; }
+      .card[data-area="compass"]   { grid-area: compass; }
+      .card[data-area="ballpower"] { grid-area: ballpower; }
+      .card[data-area="t1"]        { grid-area: t1; }
+      .card[data-area="t2"]        { grid-area: t2; }
     }
-    /* Wide: input controls left rail, tables fill the right */
+
+    /* Wide (>= 900): two independent flex columns so tables auto-size
+       (no forced row-spanning, no empty gap between Table 1 and Table 2).
+       Compass + Ball Power sit side-by-side via cb-pair flex-row, with
+       Ball Power as a narrow vertical column of chips. */
     @media (min-width: 900px) {
       main { padding: 12px 16px 32px; }
-      .play-grid {
-        grid-template-columns: 380px 1fr;
-        gap: 14px;
-        grid-template-areas:
-          "wind     t1"
-          "compass  t1"
-          "ballpower t2"
-          ".        t2";
-      }
+      .play-grid { flex-direction: row; gap: 14px; align-items: flex-start; }
+      .play-input-col { flex: 0 0 380px; gap: 14px; }
+      .play-tables-col { flex: 1; min-width: 0; gap: 14px; }
+      .cb-pair { flex-direction: row; gap: 10px; align-items: stretch; }
+      .cb-pair > .compass-wrap { flex: 1; min-width: 0; }
+      .cb-pair > .bp-card { width: 92px; flex: 0 0 92px; padding: 10px 8px; }
+      .cb-pair .ball-power { flex-direction: column; gap: 4px; align-items: stretch; }
+      .cb-pair .bp-header { flex-direction: column; align-items: flex-start;
+        gap: 0; margin-bottom: 6px; }
+      .cb-pair .bp-header .caption { display: none; }
+      .cb-pair .ball-power .chip { min-width: 0; padding: 4px 6px; width: 100%; }
+      .cb-pair .ball-power .chip .num { font-size: 13px; }
+      .cb-pair .ball-power .chip .sub { font-size: 9px; }
     }
-    .card[data-area="wind"]      { grid-area: wind; }
-    .card[data-area="compass"]   { grid-area: compass; }
-    .card[data-area="ballpower"] { grid-area: ballpower; }
-    .card[data-area="t1"]        { grid-area: t1; }
-    .card[data-area="t2"]        { grid-area: t2; }
     h1, h2, h3 { margin: 0; }
     h2 { font-size: 18px; }
     h3 { font-size: 14px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
@@ -406,43 +418,48 @@
       </header>
 
       <div class="play-grid">
-        <div class="card wind-card" data-area="wind">
-          <div class="mph-box">
-            <span class="mph-value mono" id="mph-value">0</span>
-            <span class="mph-unit">MPH</span>
-            <button id="clear-mph" class="clear-btn" title="Clear MPH" aria-label="Clear MPH">✕</button>
+        <div class="play-input-col">
+          <div class="card wind-card" data-area="wind">
+            <div class="mph-box">
+              <span class="mph-value mono" id="mph-value">0</span>
+              <span class="mph-unit">MPH</span>
+              <button id="clear-mph" class="clear-btn" title="Clear MPH" aria-label="Clear MPH">✕</button>
+            </div>
+            <div class="dir-mult">direction × <span id="dir-mult" class="mono">1.00</span> · <span id="dir-name">side</span></div>
+            <div class="numpad" id="numpad">
+              <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+              <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+              <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+              <button data-k=".">.</button><button data-k="0">0</button><button data-k="bk">⌫</button>
+            </div>
           </div>
-          <div class="dir-mult">direction × <span id="dir-mult" class="mono">1.00</span> · <span id="dir-name">side</span></div>
-          <div class="numpad" id="numpad">
-            <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
-            <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
-            <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
-            <button data-k=".">.</button><button data-k="0">0</button><button data-k="bk">⌫</button>
+
+          <div class="cb-pair">
+            <div class="card compass-wrap" data-area="compass">
+              <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
+              <div class="compass-dir small dim" id="compass-dir">side wind</div>
+              <div class="tiny dim" style="text-align:center;">tap where the in-game wind arrow points · center = side</div>
+            </div>
+
+            <div class="card bp-card" data-area="ballpower">
+              <div class="bp-header">
+                <h3>Ball power</h3>
+                <span class="caption">Each level adds % carry · scales every ring</span>
+              </div>
+              <div class="ball-power" id="ball-power">
+                <button class="chip" data-bp="0"><span class="num">0</span><span class="sub">none</span></button>
+                <button class="chip" data-bp="1"><span class="num">1</span><span class="sub">+3%</span></button>
+                <button class="chip" data-bp="2"><span class="num">2</span><span class="sub">+5%</span></button>
+                <button class="chip" data-bp="3"><span class="num">3</span><span class="sub">+7%</span></button>
+                <button class="chip" data-bp="4"><span class="num">4</span><span class="sub">+10%</span></button>
+                <button class="chip" data-bp="5"><span class="num">5</span><span class="sub">+13%</span></button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="card compass-wrap" data-area="compass">
-          <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
-          <div class="compass-dir small dim" id="compass-dir">side wind</div>
-          <div class="tiny dim" style="text-align:center;">tap where the in-game wind arrow points · center = side</div>
-        </div>
-
-        <div class="card" data-area="ballpower">
-          <div class="bp-header">
-            <h3>Ball power</h3>
-            <span class="caption">Each level adds % carry · scales every ring</span>
-          </div>
-          <div class="ball-power" id="ball-power">
-            <button class="chip" data-bp="0"><span class="num">0</span><span class="sub">none</span></button>
-            <button class="chip" data-bp="1"><span class="num">1</span><span class="sub">+3%</span></button>
-            <button class="chip" data-bp="2"><span class="num">2</span><span class="sub">+5%</span></button>
-            <button class="chip" data-bp="3"><span class="num">3</span><span class="sub">+7%</span></button>
-            <button class="chip" data-bp="4"><span class="num">4</span><span class="sub">+10%</span></button>
-            <button class="chip" data-bp="5"><span class="num">5</span><span class="sub">+13%</span></button>
-          </div>
-        </div>
-
-        <div class="card" data-area="t1">
+        <div class="play-tables-col">
+          <div class="card" data-area="t1">
           <div class="t1-head">
             <h3>Table 1 — Normal clubs · rings to pull</h3>
             <div class="pin">
@@ -460,9 +477,10 @@
           <div class="tiny dim" id="pin-hint" style="margin-top: 6px;"></div>
         </div>
 
-        <div class="card" data-area="t2">
-          <h3>Table 2 — Chip sliders · rings to pull</h3>
-          <div id="chip-rows"></div>
+          <div class="card" data-area="t2">
+            <h3>Table 2 — Chip sliders · rings to pull</h3>
+            <div id="chip-rows"></div>
+          </div>
         </div>
       </div>
 
