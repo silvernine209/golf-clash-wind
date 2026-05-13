@@ -174,24 +174,33 @@
     .compass .center-label { fill: var(--text-dim); font-size: 10px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
     .compass .cardinal-label { fill: var(--hit); font-size: 11px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 
-    /* Ball power chips */
-    .ball-power { display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap; }
+    /* Ball power chips — compact, caption shares the header row */
+    .bp-header { display: flex; align-items: baseline; gap: 8px;
+      flex-wrap: wrap; margin-bottom: 6px; }
+    .bp-header h3 { margin: 0; }
+    .bp-header .caption { font-size: 11px; color: var(--text-dim);
+      flex: 1; min-width: 0; }
+    .ball-power { display: flex; gap: 4px; align-items: stretch; flex-wrap: wrap; }
     .ball-power .chip {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 5px 10px; border-radius: 10px; background: var(--surface-2);
-      border: 1px solid var(--border); min-width: 44px; line-height: 1.1;
+      padding: 3px 8px; border-radius: 8px; background: var(--surface-2);
+      border: 1px solid var(--border); min-width: 38px; line-height: 1.05;
     }
-    .ball-power .chip .num { font-weight: 700; font-size: 15px; }
-    .ball-power .chip .sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+    .ball-power .chip .num { font-weight: 700; font-size: 13px; }
+    .ball-power .chip .sub { font-size: 9px; color: var(--text-dim); }
     .ball-power .chip.on { background: var(--accent); color: white; border-color: var(--accent); }
     .ball-power .chip.on .sub { color: rgba(255,255,255,0.85); }
-    .ball-power-caption { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
 
-    /* Tables — fixed narrow numeric columns so club name gets the room */
-    table.t1 { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; table-layout: fixed; }
-    table.t1 th, table.t1 td { padding: 8px 4px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; }
-    table.t1 th:first-child, table.t1 td:first-child { text-align: left; padding-left: 2px; padding-right: 8px; }
-    table.t1 th:not(:first-child), table.t1 td:not(:first-child) { width: 50px; }
+    /* Tables — at narrow widths let columns size to content (auto layout)
+       so club names don't wrap into 4 lines. At ≥600px lock numerics to
+       50px so the club column absorbs the empty whitespace. */
+    table.t1 { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    table.t1 th, table.t1 td { padding: 8px 4px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
+    table.t1 th:first-child, table.t1 td:first-child { text-align: left; padding-left: 2px; padding-right: 8px; white-space: normal; }
+    @media (min-width: 600px) {
+      table.t1 { table-layout: fixed; }
+      table.t1 th:not(:first-child), table.t1 td:not(:first-child) { width: 50px; }
+    }
     table.t1 th { color: var(--text-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
     table.t1 tr.in-range td { background: var(--accent-soft); }
     table.t1 .ring-cell { font-weight: 600; font-size: 15px; }
@@ -199,51 +208,68 @@
     table.t1 .ring-cell.mid { color: var(--text); }
     table.t1 .ring-cell.max { color: var(--accent); }
 
-    /* Pin distance */
-    .pin {
-      display: flex; align-items: center; gap: 8px; margin: 6px 0 4px;
-    }
+    /* Table 1 header: title left, Shot distance right (same row) */
+    .t1-head { display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+    .t1-head h3 { margin: 0; }
+    .pin { display: flex; align-items: center; gap: 4px; margin: 0; }
     .pin input {
-      width: 90px; padding: 8px 10px; border-radius: 8px;
+      width: 70px; padding: 5px 8px; border-radius: 6px;
       background: var(--surface-2); border: 1px solid var(--border);
-      font-size: 16px; -webkit-appearance: none;
+      font-size: 14px; -webkit-appearance: none;
     }
 
-    /* Chip sliders */
+    /* Chip slider rows — narrow stacks (name | pct | live on top, slider below),
+       wider inline (name | slider | pct | live one row) for much less vertical space. */
     .chip-row {
-      display: grid; grid-template-columns: 1fr; gap: 4px;
-      padding: 8px 0; border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-areas:
+        "name pct live"
+        "slider slider slider";
+      grid-template-columns: 1fr auto auto;
+      gap: 2px 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
     }
     .chip-row:last-child { border-bottom: 0; }
-    .chip-row .top { display: flex; align-items: center; gap: 10px; }
-    .chip-row .name { font-weight: 600; font-size: 14px; }
-    .chip-row .live {
-      font-size: 26px; font-weight: 700; color: var(--accent); min-width: 60px; text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-    .chip-row .pct { width: 44px; text-align: right; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .chip-row .name { grid-area: name; font-weight: 600; font-size: 14px; min-width: 0; }
+    .chip-row .pct { grid-area: pct; min-width: 36px; text-align: right;
+      font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .chip-row .live { grid-area: live; min-width: 46px; text-align: right;
+      font-size: 22px; font-weight: 700; color: var(--accent);
+      font-variant-numeric: tabular-nums; }
     .chip-row input[type=range] {
-      width: 100%; height: 44px; -webkit-appearance: none; appearance: none;
+      grid-area: slider; width: 100%; height: 32px;
+      -webkit-appearance: none; appearance: none;
       background: transparent; touch-action: pan-y;
     }
     .chip-row input[type=range]::-webkit-slider-runnable-track {
-      height: 12px; background: var(--surface-2); border-radius: 6px;
+      height: 8px; background: var(--surface-2); border-radius: 4px;
     }
     .chip-row input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: var(--accent); margin-top: -12px; border: 3px solid white;
-      box-shadow: 0 2px 6px rgba(0,0,0,.25);
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); margin-top: -10px; border: 2px solid white;
+      box-shadow: 0 2px 5px rgba(0,0,0,.25);
     }
     .chip-row input[type=range]::-moz-range-track {
-      height: 12px; background: var(--surface-2); border-radius: 6px;
+      height: 8px; background: var(--surface-2); border-radius: 4px;
     }
     .chip-row input[type=range]::-moz-range-thumb {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: var(--accent); border: 3px solid white;
-      box-shadow: 0 2px 6px rgba(0,0,0,.25);
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); border: 2px solid white;
+      box-shadow: 0 2px 5px rgba(0,0,0,.25);
     }
     .chip-row input[type=range]:focus { outline: none; }
+    @media (min-width: 520px) {
+      .chip-row {
+        grid-template-areas: "name slider pct live";
+        grid-template-columns: minmax(160px, 1.6fr) minmax(120px, 1fr) 40px 50px;
+        gap: 12px;
+        padding: 4px 0;
+      }
+    }
 
     /* Recommendation card under Table 1 */
     #pin-hint { margin-top: 8px; }
@@ -402,7 +428,10 @@
         </div>
 
         <div class="card" data-area="ballpower">
-          <h3>Ball power</h3>
+          <div class="bp-header">
+            <h3>Ball power</h3>
+            <span class="caption">Each level adds % carry · scales every ring</span>
+          </div>
           <div class="ball-power" id="ball-power">
             <button class="chip" data-bp="0"><span class="num">0</span><span class="sub">none</span></button>
             <button class="chip" data-bp="1"><span class="num">1</span><span class="sub">+3%</span></button>
@@ -411,16 +440,16 @@
             <button class="chip" data-bp="4"><span class="num">4</span><span class="sub">+10%</span></button>
             <button class="chip" data-bp="5"><span class="num">5</span><span class="sub">+13%</span></button>
           </div>
-          <div class="ball-power-caption">Each level adds % to actual carry — scales every ring count.</div>
         </div>
 
         <div class="card" data-area="t1">
-          <h3>Table 1 — Normal clubs · rings to pull</h3>
-          <div class="pin">
-            <label class="small dim" for="pin-yd">Shot distance:</label>
-            <input type="number" inputmode="numeric" id="pin-yd" placeholder="—" min="0" max="300">
-            <span class="small dim">yd</span>
-            <span class="tiny dim" style="margin-left:auto;">(optional — highlights club)</span>
+          <div class="t1-head">
+            <h3>Table 1 — Normal clubs · rings to pull</h3>
+            <div class="pin">
+              <label class="tiny dim" for="pin-yd">Shot distance</label>
+              <input type="number" inputmode="numeric" id="pin-yd" placeholder="—" min="0" max="300">
+              <span class="tiny dim">yd</span>
+            </div>
           </div>
           <table class="t1">
             <thead>
@@ -803,12 +832,10 @@
         const sliderPct = state.inputs.sliders[cat] ?? 100;
         html += `
           <div class="chip-row" data-cat="${cat}">
-            <div class="top">
-              <div class="name grow"><div class="club-cell">${clubImgTag(s.name)}<span>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</span></div></div>
-              <div class="pct mono">${sliderPct.toFixed(0)}%</div>
-              <div class="live mono">0.0</div>
-            </div>
+            <div class="name"><div class="club-cell">${clubImgTag(s.name)}<span>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</span></div></div>
             <input type="range" min="10" max="100" step="5" value="${sliderPct}" data-cat="${cat}">
+            <div class="pct mono">${sliderPct.toFixed(0)}%</div>
+            <div class="live mono">0.0</div>
           </div>`;
       }
       wrap.innerHTML = html;
