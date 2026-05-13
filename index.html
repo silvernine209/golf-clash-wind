@@ -204,6 +204,21 @@
     }
     .chip-row input[type=range]:focus { outline: none; }
 
+    /* Recommendation card under Table 1 */
+    #pin-hint { margin-top: 8px; }
+    .rec-line {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+    }
+    .rec-arrow { color: var(--accent); font-weight: 700; font-size: 18px; line-height: 1.2; }
+    .rec-body { flex: 1; min-width: 0; }
+    .rec-club { font-size: 14px; }
+    .rec-rings { margin-top: 4px; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+    .rec-num { font-size: 28px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .rec-unit { color: var(--text-dim); font-size: 14px; }
+
     /* Bags page */
     .bag-list { display: flex; flex-direction: column; gap: 10px; }
     .bag-card {
@@ -235,6 +250,8 @@
       font-size: 14px; -webkit-appearance: none;
     }
     .slot .hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .slot .custom-name { margin-top: 6px; width: 100%; padding: 8px; border-radius: 8px;
+      background: var(--surface-2); border: 1px solid var(--border); font-size: 14px; }
 
     .fab {
       position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 14px);
@@ -363,13 +380,6 @@
       <div class="toolbar" style="justify-content: flex-end;">
         <button id="save-bag" class="primary">Save</button>
       </div>
-      <datalist id="dl-Drivers"></datalist>
-      <datalist id="dl-Woods"></datalist>
-      <datalist id="dl-LongIrons"></datalist>
-      <datalist id="dl-ShortIrons"></datalist>
-      <datalist id="dl-Wedges"></datalist>
-      <datalist id="dl-RoughIrons"></datalist>
-      <datalist id="dl-SandWedges"></datalist>
     </section>
   </main>
 
@@ -560,23 +570,62 @@
       svg.innerHTML = html;
     }
 
-    function pinHintLine(pin, bag) {
-      if (!pin) return "";
-      for (const cat of NORMAL) {
+    // Build the "→ at this exact distance, use Club X at Y% slider = Z rings"
+    // recommendation. Returns { html, matchedCat } so renderTable1 can also
+    // highlight the matched row and show its exact-rings column.
+    function pinRecommendation(pin, bag) {
+      if (!pin) return { html: "", matchedCat: null, exactRings: null };
+      const mph = parseNum(state.inputs.mph);
+      const dirF = directionFactor(state.inputs.dir);
+
+      // Normal clubs: iterate shortest-first, so an exact boundary distance
+      // (e.g. 166yd = Wood max) picks the SHORTER club (Wood at 100% slider)
+      // rather than the next longer club at minimum-needed slider.
+      const NORMAL_SHORT_FIRST = NORMAL.slice().reverse(); // ShortIron, LongIron, Wood, Driver
+      for (let i = 0; i < NORMAL_SHORT_FIRST.length; i++) {
+        const cat = NORMAL_SHORT_FIRST[i];
         const s = bag.slots[cat];
         const sh = bag.slots[SHORTER[cat]];
         const minC = sh.power, maxC = s.power;
-        if (pin >= minC && pin <= maxC) {
-          const pct = ((pin - minC) / (maxC - minC || 1)) * 100;
-          return `Pin ${pin}yd fits ${DISPLAY[cat]} (${pct.toFixed(0)}% through its range, ${minC}–${maxC}yd)`;
+        // shortest club uses inclusive lower bound; others use exclusive lower
+        // (so the boundary belongs to the previous, shorter club).
+        const lowerOk = i === 0 ? (pin >= minC) : (pin > minC);
+        if (lowerOk && pin <= maxC) {
+          const sliderPct = (pin / maxC) * 100;
+          const rPerMph = ringsPerMph(cat, s.power, s.accuracy, pin, s.name, s.level, bag.ballPower);
+          const rings = rPerMph * mph * dirF;
+          const html = `
+            <div class="rec-line">
+              <span class="rec-arrow">→</span>
+              <div class="rec-body">
+                <div class="rec-club"><strong>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</strong> · ${sliderPct.toFixed(0)}% slider</div>
+                <div class="rec-rings"><span class="rec-num mono">${fmt(rings)}</span> <span class="rec-unit">rings to pull</span> <span class="tiny dim">(${mph || 0} MPH × ${rPerMph.toFixed(2)} × ${dirF.toFixed(2)} dir)</span></div>
+              </div>
+            </div>`;
+          return { html, matchedCat: cat, exactRings: rings };
         }
       }
+      // Chip range
       const wedgePower = bag.slots.Wedges.power;
       if (pin <= wedgePower) {
-        const pct = (pin / wedgePower) * 100;
-        return `Pin ${pin}yd is a Wedge chip @ ~${pct.toFixed(0)}% slider`;
+        const s = bag.slots.Wedges;
+        const sliderPct = (pin / wedgePower) * 100;
+        const rPerMph = ringsPerMph('Wedges', s.power, s.accuracy, pin, s.name, s.level, bag.ballPower);
+        const rings = rPerMph * mph * dirF;
+        const html = `
+          <div class="rec-line">
+            <span class="rec-arrow">→</span>
+            <div class="rec-body">
+              <div class="rec-club"><strong>Wedge chip — ${escapeHtml(s.name)} ${s.level}</strong> · ${sliderPct.toFixed(0)}% slider</div>
+              <div class="rec-rings"><span class="rec-num mono">${fmt(rings)}</span> <span class="rec-unit">rings to pull</span> <span class="tiny dim">(use Rough/Sand instead if on those lies)</span></div>
+            </div>
+          </div>`;
+        return { html, matchedCat: 'Wedges', exactRings: rings };
       }
-      return `Pin ${pin}yd is beyond your Driver power (${bag.slots.Drivers.power}yd)`;
+      return {
+        html: `<div class="rec-line"><span class="rec-arrow">!</span><div class="rec-body"><div class="rec-club">${pin}yd is beyond your Driver max (${bag.slots.Drivers.power}yd)</div></div></div>`,
+        matchedCat: null, exactRings: null
+      };
     }
 
     function renderTable1() {
@@ -584,6 +633,7 @@
       const mph = parseNum(state.inputs.mph);
       const dirF = directionFactor(state.inputs.dir);
       const pin = parseNum(state.inputs.pinYd);
+      const rec = pinRecommendation(pin, bag);
       const tbody = $("#t1-body");
       let rows = "";
       for (const cat of NORMAL) {
@@ -594,7 +644,7 @@
         const rMin = ringsPerMph(...args(minC)) * mph * dirF;
         const rMid = ringsPerMph(...args(midC)) * mph * dirF;
         const rMax = ringsPerMph(...args(maxC)) * mph * dirF;
-        const inRange = pin && pin >= minC && pin <= maxC;
+        const inRange = rec.matchedCat === cat;
         rows += `
           <tr class="${inRange ? "in-range" : ""}">
             <td>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</td>
@@ -606,7 +656,7 @@
           </tr>`;
       }
       tbody.innerHTML = rows;
-      $("#pin-hint").textContent = pinHintLine(pin, bag);
+      $("#pin-hint").innerHTML = rec.html;
     }
 
     // Full rebuild — called only when bag or slot list changes.
@@ -679,11 +729,6 @@
             </div>
           </div>`;
       }).join("");
-      // populate datalists
-      for (const cat of ALL_CATS) {
-        const dl = $("#dl-" + cat);
-        dl.innerHTML = Object.keys(window.CLUBS[cat] || {}).map(n => `<option value="${escapeHtml(n)}">`).join("");
-      }
     }
 
     function renderEdit() {
@@ -695,47 +740,81 @@
       const slotsWrap = $("#edit-slots");
       slotsWrap.innerHTML = ALL_CATS.map(cat => {
         const s = bag.slots[cat] || {};
-        const cluLevels = (window.CLUBS[cat]?.[s.name]?.power || []).length || 10;
+        const catClubs = window.CLUBS[cat] || {};
+        const known = Object.prototype.hasOwnProperty.call(catClubs, s.name);
+        // club dropdown — group by tier hint via the data we have (just name)
+        const nameOpts = `
+          <option value="" ${!s.name ? "selected" : ""}>— select club —</option>
+          ${Object.keys(catClubs).map(n => `<option value="${escapeHtml(n)}" ${n === s.name ? "selected" : ""}>${escapeHtml(n)}</option>`).join("")}
+          <option value="__custom__" ${s.name && !known ? "selected" : ""}>Custom / not in list…</option>
+        `;
+        const cluLevels = (catClubs[s.name]?.power || []).length || 10;
         const levelOpts = Array.from({length: cluLevels}, (_, i) => i + 1)
           .map(l => `<option ${l === s.level ? "selected" : ""}>${l}</option>`).join("");
+        const customRow = s.name && !known
+          ? `<input type="text" class="custom-name" placeholder="custom club name" value="${escapeHtml(s.name)}" data-field="customName">`
+          : `<input type="text" class="custom-name" placeholder="custom club name" value="" data-field="customName" style="display:none;">`;
         return `
           <div class="slot" data-cat="${cat}">
             <div class="label">${DISPLAY[cat]}</div>
             <div class="grid">
-              <input type="text" placeholder="club name" value="${escapeHtml(s.name || "")}" list="dl-${cat}" data-field="name">
+              <select data-field="name">${nameOpts}</select>
               <select data-field="level">${levelOpts}</select>
-              <input type="number" placeholder="power" value="${s.power ?? ""}" data-field="power" min="0">
-              <input type="number" placeholder="acc" value="${s.accuracy ?? ""}" data-field="accuracy" min="0" max="100">
+              <input type="number" placeholder="power" value="${s.power ?? ""}" data-field="power" min="0" inputmode="numeric">
+              <input type="number" placeholder="acc" value="${s.accuracy ?? ""}" data-field="accuracy" min="0" max="100" inputmode="numeric">
             </div>
-            <div class="hint">power/acc override the catalog — use these for perks. Auto-fills from catalog when name+level change.</div>
+            ${customRow}
+            <div class="hint">Pick a club → power/acc auto-fill. Edit them after for perk bonuses/penalties.</div>
           </div>`;
       }).join("");
       // wire up auto-fill on name/level change
       $$("#edit-slots .slot").forEach(slot => {
         const cat = slot.dataset.cat;
-        const nameI = slot.querySelector('[data-field=name]');
-        const lvlI  = slot.querySelector('[data-field=level]');
-        const pwrI  = slot.querySelector('[data-field=power]');
-        const accI  = slot.querySelector('[data-field=accuracy]');
-        const fill = () => {
-          const cat2 = cat;
-          const cdata = window.CLUBS[cat2]?.[nameI.value];
-          if (cdata) {
-            const lvls = cdata.power.length;
-            // refresh level dropdown range if needed
-            if (lvlI.options.length !== lvls) {
-              const cur = +lvlI.value;
-              lvlI.innerHTML = Array.from({length: lvls}, (_, i) => i + 1)
-                .map(l => `<option ${l === cur ? "selected" : ""}>${l}</option>`).join("");
-            }
-            const lvl = +lvlI.value || 1;
-            const idx = Math.min(Math.max(lvl - 1, 0), lvls - 1);
-            pwrI.value = cdata.power[idx];
-            accI.value = cdata.accuracy[idx];
-          }
+        const nameI   = slot.querySelector('[data-field=name]');
+        const lvlI    = slot.querySelector('[data-field=level]');
+        const pwrI    = slot.querySelector('[data-field=power]');
+        const accI    = slot.querySelector('[data-field=accuracy]');
+        const customI = slot.querySelector('[data-field=customName]');
+
+        const showCustom = () => {
+          customI.style.display = "";
+          customI.focus();
         };
-        nameI.addEventListener("change", fill);
-        lvlI.addEventListener("change", fill);
+        const hideCustom = () => { customI.style.display = "none"; };
+
+        const fillFromCatalog = (forceLevel) => {
+          const name = nameI.value;
+          const cdata = window.CLUBS[cat]?.[name];
+          if (!cdata) return;
+          // refresh level dropdown range to match this club's max level
+          const lvls = cdata.power.length;
+          if (lvlI.options.length !== lvls) {
+            const cur = Math.min(forceLevel ?? +lvlI.value ?? 1, lvls);
+            lvlI.innerHTML = Array.from({length: lvls}, (_, i) => i + 1)
+              .map(l => `<option ${l === cur ? "selected" : ""}>${l}</option>`).join("");
+          }
+          const lvl = +lvlI.value || 1;
+          const idx = Math.min(Math.max(lvl - 1, 0), lvls - 1);
+          pwrI.value = cdata.power[idx];
+          accI.value = cdata.accuracy[idx];
+        };
+
+        nameI.addEventListener("change", () => {
+          if (nameI.value === "__custom__") {
+            showCustom();
+            // don't autofill power/acc — user types their own
+          } else if (nameI.value === "") {
+            hideCustom();
+            pwrI.value = "";
+            accI.value = "";
+          } else {
+            hideCustom();
+            fillFromCatalog(1);
+          }
+        });
+        lvlI.addEventListener("change", () => {
+          if (nameI.value && nameI.value !== "__custom__") fillFromCatalog();
+        });
       });
     }
 
@@ -760,9 +839,16 @@
     };
 
     function newBag() {
-      const b = structuredClone(SEED_BAG);
-      b.id = uid();
-      b.name = "Bag " + (state.bags.length + 1);
+      // Start blank — user picks each club from the dropdown.
+      const b = {
+        id: uid(),
+        name: "Bag " + (state.bags.length + 1),
+        ballPower: 0,
+        slots: {},
+      };
+      for (const cat of ALL_CATS) {
+        b.slots[cat] = { name: "", level: 1, power: 0, accuracy: 0 };
+      }
       state.bags.push(b);
       saveBags(state.bags);
       location.hash = "#edit/" + b.id;
@@ -776,9 +862,13 @@
       bag.ballPower = bpOn ? +bpOn.dataset.bp : 0;
       $$("#edit-slots .slot").forEach(slot => {
         const cat = slot.dataset.cat;
-        const get = (f) => slot.querySelector(`[data-field=${f}]`).value;
+        const get = (f) => slot.querySelector(`[data-field=${f}]`)?.value || "";
+        const selected = get("name");
+        const name = (selected === "__custom__")
+          ? (get("customName").trim() || "Custom")
+          : (selected || "Unknown");
         bag.slots[cat] = {
-          name: get("name") || "Unknown",
+          name,
           level: parseInt(get("level"), 10) || 1,
           power: parseNum(get("power")),
           accuracy: parseNum(get("accuracy")),
