@@ -1,5 +1,9 @@
-// Golf Clash Wind — service worker (cache-first app shell for offline use).
-const CACHE = "gc-wind-v1";
+// Golf Clash Wind — service worker.
+// Strategy:
+//   - Navigations (HTML): network-first with cache fallback → always fresh online,
+//     but works offline. Avoids stale UI after deploys.
+//   - Static assets (clubs.js, icons, manifest): cache-first.
+const CACHE = "gc-wind-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -25,13 +29,29 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
-  e.respondWith(
-    caches.match(req).then((hit) => hit ||
+
+  const isHTML = req.mode === "navigate" ||
+                 (req.headers.get("accept") || "").includes("text/html");
+
+  if (isHTML) {
+    // Network-first for HTML so we don't get stuck on a stale shell.
+    e.respondWith(
       fetch(req).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
         return res;
-      }).catch(() => caches.match("./index.html"))
-    )
-  );
+      }).catch(() => caches.match(req).then((hit) => hit || caches.match("./index.html")))
+    );
+  } else {
+    // Cache-first for everything else.
+    e.respondWith(
+      caches.match(req).then((hit) => hit ||
+        fetch(req).then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          return res;
+        }).catch(() => caches.match("./index.html"))
+      )
+    );
+  }
 });

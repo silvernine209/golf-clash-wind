@@ -249,6 +249,7 @@
       <div class="card compass-wrap">
         <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
         <div class="compass-dir small dim" id="compass-dir">side wind</div>
+        <div class="tiny dim" style="text-align:center;">tap where the in-game wind arrow points · center = reset to side</div>
       </div>
 
       <div class="card">
@@ -267,9 +268,10 @@
       <div class="card">
         <h3>Table 1 — Normal clubs · rings to pull</h3>
         <div class="pin">
-          <span class="small dim">Pin distance (optional):</span>
+          <label class="small dim" for="pin-yd">Shot distance:</label>
           <input type="number" inputmode="numeric" id="pin-yd" placeholder="—" min="0" max="300">
           <span class="small dim">yd</span>
+          <span class="tiny dim" style="margin-left:auto;">(optional — picks the right club)</span>
         </div>
         <table class="t1">
           <thead>
@@ -387,7 +389,6 @@
       return bags;
     }
     function saveBags(bags) { LS.set("gc.bags", bags); }
-    function getActiveId() { return LS.get("gc.activeBagId", state.bags[0]?.id); }
     function setActiveId(id) { LS.set("gc.activeBagId", id); state.activeId = id; }
     function activeBag() { return state.bags.find(b => b.id === state.activeId) || state.bags[0]; }
 
@@ -424,9 +425,10 @@
     }
 
     // ============================== State =================================
+    const _bagsInit = loadBags();
     const state = {
-      bags: loadBags(),
-      activeId: getActiveId(),
+      bags: _bagsInit,
+      activeId: LS.get("gc.activeBagId", _bagsInit[0]?.id),
       inputs: loadInputs(),
       view: "play",
       editingId: null,
@@ -509,14 +511,14 @@
         const b2x = Math.sin(rad) * baseR - perpX, b2y = -Math.cos(rad) * baseR - perpY;
         const isOn = Math.abs(((inputs.dir - deg + 540) % 360) - 180) < 11.25;
         html += `<g class="arrow-btn ${isOn ? "on" : ""}" data-deg="${deg}">`;
-        // big invisible hit box
-        const hx = Math.sin(rad) * 80, hy = -Math.cos(rad) * 80;
-        html += `<circle cx="${hx}" cy="${hy}" r="18" fill="transparent"/>`;
+        // big invisible hit box (~50px tap target on a 240px compass)
+        const hx = Math.sin(rad) * 75, hy = -Math.cos(rad) * 75;
+        html += `<circle cx="${hx}" cy="${hy}" r="22" fill="transparent"/>`;
         html += `<polygon points="${tx},${ty} ${b1x},${b1y} ${b2x},${b2y}"/>`;
         html += `</g>`;
       }
-      // center recenter button
-      html += `<circle class="center-btn" cx="0" cy="0" r="20"/>`;
+      // center recenter button — tap to reset to side wind (90°)
+      html += `<circle class="center-btn" cx="0" cy="0" r="22"/>`;
       html += `<text class="center-label" x="0" y="0">${state.inputs.dir.toFixed(0)}°</text>`;
       svg.innerHTML = html;
     }
@@ -800,7 +802,7 @@
       $("#compass").addEventListener("click", (e) => {
         const g = e.target.closest("[data-deg]");
         if (g) onCompassTap(+g.dataset.deg);
-        else if (e.target.closest(".center-btn")) { state.inputs.mph = "0"; saveInputs(); $("#mph-value").textContent = "0"; renderTable1(); renderChipRows(); }
+        else if (e.target.closest(".center-btn")) onCompassTap(90); // reset to side wind
       });
       // Ball power
       $("#ball-power").addEventListener("click", (e) => {
