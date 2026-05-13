@@ -2,7 +2,7 @@
 
 A mobile-first wind calculator for Golf Clash. Tap the wind speed and direction → see exactly how many rings to pull the bullseye, per club, in real time. Works offline once installed.
 
-**Open the app:** <https://silvernine209.github.io/golf-clash-ring-per-mph-generator/>
+**Open the app:** <https://silvernine209.github.io/golf-clash-wind/>
 
 ![Play view](docs/screenshots/01-play-wide.png)
 
@@ -24,7 +24,7 @@ The formula is the verified one from Golf Clash Notebook's open-source [wind.sca
 
 ### 1. Open the link on your phone
 
-<https://silvernine209.github.io/golf-clash-ring-per-mph-generator/>
+<https://silvernine209.github.io/golf-clash-wind/>
 
 On iPhone Safari: tap **Share** → **Add to Home Screen** and it installs as a full-screen app. Works offline after the first load. Screen stays awake while you're on the Play page.
 
@@ -136,8 +136,8 @@ The app is **100% client-side**. There's no server, no account, no analytics. Ev
 The whole web app is one `index.html` (plus club icons + a tiny service worker). Anyone can self-host:
 
 ```bash
-git clone https://github.com/silvernine209/golf-clash-ring-per-mph-generator
-cd golf-clash-ring-per-mph-generator
+git clone https://github.com/silvernine209/golf-clash-wind
+cd golf-clash-wind
 python3 -m http.server 8765
 # Open http://localhost:8765
 ```
