@@ -48,13 +48,47 @@
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       overscroll-behavior-y: contain;
     }
-    main { max-width: 560px; margin: 0 auto; padding: 12px 12px 32px; }
-    .play-grid { display: flex; flex-direction: column; gap: 10px; }
-    .play-grid > .col-left, .play-grid > .col-right { display: flex; flex-direction: column; gap: 10px; }
-    @media (min-width: 900px) {
-      main { max-width: 1100px; padding: 12px 16px 32px; }
-      .play-grid { display: grid; grid-template-columns: 380px 1fr; align-items: start; gap: 14px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 12px 12px 32px; }
+    /* Single column on the narrowest screens */
+    .play-grid {
+      display: grid; gap: 10px; align-items: start;
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "wind"
+        "compass"
+        "ballpower"
+        "t1"
+        "t2";
     }
+    /* Medium: wind | (compass+ballpower) at top, tables full width below */
+    @media (min-width: 600px) {
+      .play-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "wind compass"
+          "wind ballpower"
+          "t1 t1"
+          "t2 t2";
+      }
+    }
+    /* Wide: input controls left rail, tables fill the right */
+    @media (min-width: 900px) {
+      main { padding: 12px 16px 32px; }
+      .play-grid {
+        grid-template-columns: 380px 1fr;
+        gap: 14px;
+        grid-template-areas:
+          "wind     t1"
+          "compass  t1"
+          "ballpower t2"
+          ".        t2";
+      }
+    }
+    .card[data-area="wind"]      { grid-area: wind; }
+    .card[data-area="compass"]   { grid-area: compass; }
+    .card[data-area="ballpower"] { grid-area: ballpower; }
+    .card[data-area="t1"]        { grid-area: t1; }
+    .card[data-area="t2"]        { grid-area: t2; }
     h1, h2, h3 { margin: 0; }
     h2 { font-size: 18px; }
     h3 { font-size: 14px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
@@ -109,30 +143,36 @@
     .clear-btn:active { background: var(--accent-soft); }
     .dir-mult { font-size: 12px; color: var(--text-dim); text-align: center; }
 
-    .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .numpad { display: grid; grid-template-columns: repeat(3, minmax(0, 84px));
+      gap: 6px; justify-content: center; }
     .numpad button {
       background: var(--surface-2); border-radius: 10px;
-      height: 48px; font-size: 20px; font-weight: 600;
+      height: 44px; font-size: 19px; font-weight: 600;
       transition: transform 80ms ease, background 120ms ease;
     }
     .numpad button:active { transform: scale(0.95); background: var(--accent-soft); }
     .numpad .clr { color: var(--warn); font-size: 15px; }
 
     /* Compass */
-    .compass-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .compass-wrap { display: flex; flex-direction: column; align-items: center;
+      gap: 2px; padding: 8px 8px 10px; }
     .compass {
-      width: 200px; height: 200px; max-width: 70vw; max-height: 70vw;
+      width: 180px; height: 180px; max-width: 70vw; max-height: 70vw;
       display: block;
     }
-    @media (min-width: 900px) { .compass { width: 220px; height: 220px; } }
-    .compass-dir { font-weight: 600; font-size: 14px; }
+    @media (min-width: 900px) { .compass { width: 200px; height: 200px; } }
+    .compass-dir { font-weight: 600; font-size: 13px; margin-top: 2px; }
     .arrow-btn { fill: var(--text-dim); cursor: pointer; transition: fill 100ms; }
     .arrow-btn:hover { fill: var(--text); }
-    .arrow-btn.on { fill: var(--accent); }
+    /* Cardinal arrows (N/E/S/W) are red for quick visual anchoring */
+    .arrow-btn.cardinal { fill: var(--hit); }
+    .arrow-btn.cardinal:hover { fill: var(--hit); filter: brightness(1.15); }
+    /* Selected wins regardless — declared last so its specificity ties resolve to accent */
+    .arrow-btn.on, .arrow-btn.cardinal.on { fill: var(--accent); }
     .compass .face { fill: var(--surface-2); stroke: var(--border); stroke-width: 1; }
     .compass .center-btn { fill: var(--surface); stroke: var(--border); stroke-width: 1; cursor: pointer; }
     .compass .center-label { fill: var(--text-dim); font-size: 10px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
-    .compass .cardinal { fill: var(--text-dim); font-size: 11px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+    .compass .cardinal-label { fill: var(--hit); font-size: 11px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 
     /* Ball power chips */
     .ball-power { display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap; }
@@ -147,13 +187,14 @@
     .ball-power .chip.on .sub { color: rgba(255,255,255,0.85); }
     .ball-power-caption { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
 
-    /* Tables */
-    table.t1 { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-    table.t1 th, table.t1 td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; }
-    table.t1 th:first-child, table.t1 td:first-child { text-align: left; }
-    table.t1 th { color: var(--text-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    /* Tables — fixed narrow numeric columns so club name gets the room */
+    table.t1 { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; table-layout: fixed; }
+    table.t1 th, table.t1 td { padding: 8px 4px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; }
+    table.t1 th:first-child, table.t1 td:first-child { text-align: left; padding-left: 2px; padding-right: 8px; }
+    table.t1 th:not(:first-child), table.t1 td:not(:first-child) { width: 50px; }
+    table.t1 th { color: var(--text-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
     table.t1 tr.in-range td { background: var(--accent-soft); }
-    table.t1 .ring-cell { font-weight: 600; font-size: 16px; }
+    table.t1 .ring-cell { font-weight: 600; font-size: 15px; }
     table.t1 .ring-cell.min { color: var(--text-dim); }
     table.t1 .ring-cell.mid { color: var(--text); }
     table.t1 .ring-cell.max { color: var(--accent); }
@@ -339,69 +380,65 @@
       </header>
 
       <div class="play-grid">
-        <div class="col-left">
-          <div class="card wind-card">
-            <div class="mph-box">
-              <span class="mph-value mono" id="mph-value">0</span>
-              <span class="mph-unit">MPH</span>
-              <button id="clear-mph" class="clear-btn" title="Clear MPH" aria-label="Clear MPH">✕</button>
-            </div>
-            <div class="dir-mult">direction × <span id="dir-mult" class="mono">1.00</span> · <span id="dir-name">side</span></div>
-            <div class="numpad" id="numpad">
-              <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
-              <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
-              <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
-              <button data-k=".">.</button><button data-k="0">0</button><button data-k="bk">⌫</button>
-            </div>
+        <div class="card wind-card" data-area="wind">
+          <div class="mph-box">
+            <span class="mph-value mono" id="mph-value">0</span>
+            <span class="mph-unit">MPH</span>
+            <button id="clear-mph" class="clear-btn" title="Clear MPH" aria-label="Clear MPH">✕</button>
           </div>
-
-          <div class="card compass-wrap">
-            <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
-            <div class="compass-dir small dim" id="compass-dir">side wind</div>
-            <div class="tiny dim" style="text-align:center;">tap the direction the in-game wind arrow points · center = side</div>
-          </div>
-
-          <div class="card">
-            <h3>Ball power</h3>
-            <div class="ball-power" id="ball-power">
-              <button class="chip" data-bp="0"><span class="num">0</span><span class="sub">none</span></button>
-              <button class="chip" data-bp="1"><span class="num">1</span><span class="sub">+3%</span></button>
-              <button class="chip" data-bp="2"><span class="num">2</span><span class="sub">+5%</span></button>
-              <button class="chip" data-bp="3"><span class="num">3</span><span class="sub">+7%</span></button>
-              <button class="chip" data-bp="4"><span class="num">4</span><span class="sub">+10%</span></button>
-              <button class="chip" data-bp="5"><span class="num">5</span><span class="sub">+13%</span></button>
-            </div>
-            <div class="ball-power-caption">Each level adds % to actual carry — scales every ring count.</div>
+          <div class="dir-mult">direction × <span id="dir-mult" class="mono">1.00</span> · <span id="dir-name">side</span></div>
+          <div class="numpad" id="numpad">
+            <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+            <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+            <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+            <button data-k=".">.</button><button data-k="0">0</button><button data-k="bk">⌫</button>
           </div>
         </div>
 
-        <div class="col-right">
-          <div class="card">
-            <h3>Table 1 — Normal clubs · rings to pull</h3>
-            <div class="pin">
-              <label class="small dim" for="pin-yd">Shot distance:</label>
-              <input type="number" inputmode="numeric" id="pin-yd" placeholder="—" min="0" max="300">
-              <span class="small dim">yd</span>
-              <span class="tiny dim" style="margin-left:auto;">(optional — highlights club)</span>
-            </div>
-            <table class="t1">
-              <thead>
-                <tr><th>Club</th><th>Acc</th><th>Pwr</th><th>MIN</th><th>MID</th><th>MAX</th></tr>
-              </thead>
-              <tbody id="t1-body"></tbody>
-            </table>
-            <div class="tiny dim" id="pin-hint" style="margin-top: 6px;"></div>
-          </div>
-
-          <div class="card">
-            <h3>Table 2 — Chip sliders · rings to pull</h3>
-            <div id="chip-rows"></div>
-          </div>
-
-          <div class="footer">
-            Formula: <a href="https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala" target="_blank" rel="noopener">GCN wind.scala</a>
-          </div>
+        <div class="card compass-wrap" data-area="compass">
+          <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
+          <div class="compass-dir small dim" id="compass-dir">side wind</div>
+          <div class="tiny dim" style="text-align:center;">tap where the in-game wind arrow points · center = side</div>
         </div>
+
+        <div class="card" data-area="ballpower">
+          <h3>Ball power</h3>
+          <div class="ball-power" id="ball-power">
+            <button class="chip" data-bp="0"><span class="num">0</span><span class="sub">none</span></button>
+            <button class="chip" data-bp="1"><span class="num">1</span><span class="sub">+3%</span></button>
+            <button class="chip" data-bp="2"><span class="num">2</span><span class="sub">+5%</span></button>
+            <button class="chip" data-bp="3"><span class="num">3</span><span class="sub">+7%</span></button>
+            <button class="chip" data-bp="4"><span class="num">4</span><span class="sub">+10%</span></button>
+            <button class="chip" data-bp="5"><span class="num">5</span><span class="sub">+13%</span></button>
+          </div>
+          <div class="ball-power-caption">Each level adds % to actual carry — scales every ring count.</div>
+        </div>
+
+        <div class="card" data-area="t1">
+          <h3>Table 1 — Normal clubs · rings to pull</h3>
+          <div class="pin">
+            <label class="small dim" for="pin-yd">Shot distance:</label>
+            <input type="number" inputmode="numeric" id="pin-yd" placeholder="—" min="0" max="300">
+            <span class="small dim">yd</span>
+            <span class="tiny dim" style="margin-left:auto;">(optional — highlights club)</span>
+          </div>
+          <table class="t1">
+            <thead>
+              <tr><th>Club</th><th>Acc</th><th>Pwr</th><th>MIN</th><th>MID</th><th>MAX</th></tr>
+            </thead>
+            <tbody id="t1-body"></tbody>
+          </table>
+          <div class="tiny dim" id="pin-hint" style="margin-top: 6px;"></div>
+        </div>
+
+        <div class="card" data-area="t2">
+          <h3>Table 2 — Chip sliders · rings to pull</h3>
+          <div id="chip-rows"></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        Formula: <a href="https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala" target="_blank" rel="noopener">GCN wind.scala</a>
       </div>
     </section>
 
@@ -638,16 +675,13 @@
       const svg = $("#compass");
       const inputs = state.inputs;
       let html = `<circle class="face" cx="0" cy="0" r="92"/>`;
-      // cardinal labels
-      const cards = [["N",0,-78],["E",78,0],["S",0,78],["W",-78,0]];
-      for (const [t,x,y] of cards) html += `<text class="cardinal" x="${x}" y="${y}">${t}</text>`;
-      // 16 arrows
+      // cardinal labels (N/E/S/W) in red
+      const cards = [["N",0,-82],["E",82,0],["S",0,82],["W",-82,0]];
+      for (const [t,x,y] of cards) html += `<text class="cardinal-label" x="${x}" y="${y}">${t}</text>`;
+      // 16 arrows; the 4 cardinals get the .cardinal class so they're red
       for (let i = 0; i < 16; i++) {
         const deg = i * 22.5;
         const rad = deg * Math.PI / 180;
-        // arrow at radius ~62, pointing inward; tap target is wider invisible rect
-        const px = Math.sin(rad) * 62, py = -Math.cos(rad) * 62;
-        // arrow polygon: triangle pointing toward center
         const tipR = 46;
         const tx = Math.sin(rad) * tipR, ty = -Math.cos(rad) * tipR;
         const baseR = 70;
@@ -656,8 +690,9 @@
         const b1x = Math.sin(rad) * baseR + perpX, b1y = -Math.cos(rad) * baseR + perpY;
         const b2x = Math.sin(rad) * baseR - perpX, b2y = -Math.cos(rad) * baseR - perpY;
         const isOn = Math.abs(((inputs.dir - deg + 540) % 360) - 180) < 11.25;
-        html += `<g class="arrow-btn ${isOn ? "on" : ""}" data-deg="${deg}">`;
-        // big invisible hit box (~50px tap target on a 240px compass)
+        const isCardinal = (deg % 90) === 0;
+        html += `<g class="arrow-btn ${isOn ? "on" : ""} ${isCardinal ? "cardinal" : ""}" data-deg="${deg}">`;
+        // big invisible hit box (~50px tap target)
         const hx = Math.sin(rad) * 75, hy = -Math.cos(rad) * 75;
         html += `<circle cx="${hx}" cy="${hy}" r="22" fill="transparent"/>`;
         html += `<polygon points="${tx},${ty} ${b1x},${b1y} ${b2x},${b2y}"/>`;
