@@ -74,21 +74,23 @@
       display: flex; flex-direction: column; gap: 10px; min-width: 0;
     }
 
-    /* Medium (600–899): wind on the left top, compass + vertical ball
-       power side-by-side on the right top (same idea as wide). Tables
-       full width below. play-input-col / play-tables-col go invisible
-       via display:contents so they don't participate in the grid;
-       cb-pair stays as a flex container that occupies the "cb" area. */
-    @media (min-width: 600px) and (max-width: 899px) {
+    /* >= 600px: single unified layout — wind card sized to its content
+       (≈320px) on the left, compass + narrow vertical ball power filling
+       the rest of the top row, tables full width below. play-input-col
+       and play-tables-col go invisible via display:contents so the
+       inner cards become direct grid items; cb-pair is the flex-row
+       that holds compass + bp side-by-side. align-items: start keeps
+       the wind card from stretching to match a taller compass column. */
+    @media (min-width: 600px) {
+      main { padding: 12px 16px 32px; }
       .play-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 320px 1fr;
         grid-template-areas:
-          "wind cb"
           "wind cb"
           "t1   t1"
           "t2   t2";
-        gap: 10px;
+        gap: 12px;
         align-items: start;
       }
       .play-input-col, .play-tables-col { display: contents; }
@@ -97,36 +99,17 @@
         grid-area: cb; align-items: stretch;
       }
       .cb-pair > .compass-wrap { flex: 1; min-width: 0; }
-      .cb-pair > .bp-card { width: 88px; flex: 0 0 88px; padding: 10px 8px; }
+      .cb-pair > .bp-card { width: 76px; flex: 0 0 76px; padding: 8px 6px; }
       .cb-pair .ball-power { flex-direction: column; gap: 4px; align-items: stretch; }
       .cb-pair .bp-header { flex-direction: column; align-items: flex-start;
-        gap: 0; margin-bottom: 6px; }
+        gap: 0; margin-bottom: 4px; }
       .cb-pair .bp-header .caption { display: none; }
-      .cb-pair .ball-power .chip { width: 100%; padding: 4px 6px; min-width: 0; }
+      .cb-pair .ball-power .chip { width: 100%; padding: 3px 4px; min-width: 0; }
+      .cb-pair .ball-power .chip .num { font-size: 13px; }
+      .cb-pair .ball-power .chip .sub { font-size: 9px; }
       .card[data-area="wind"] { grid-area: wind; }
       .card[data-area="t1"]   { grid-area: t1; }
       .card[data-area="t2"]   { grid-area: t2; }
-    }
-
-    /* Wide (>= 900): two independent flex columns so tables auto-size
-       (no forced row-spanning, no empty gap between Table 1 and Table 2).
-       Compass + Ball Power sit side-by-side via cb-pair flex-row, with
-       Ball Power as a narrow vertical column of chips. */
-    @media (min-width: 900px) {
-      main { padding: 12px 16px 32px; }
-      .play-grid { flex-direction: row; gap: 14px; align-items: flex-start; }
-      .play-input-col { flex: 0 0 380px; gap: 14px; }
-      .play-tables-col { flex: 1; min-width: 0; gap: 14px; }
-      .cb-pair { flex-direction: row; gap: 10px; align-items: stretch; }
-      .cb-pair > .compass-wrap { flex: 1; min-width: 0; }
-      .cb-pair > .bp-card { width: 92px; flex: 0 0 92px; padding: 10px 8px; }
-      .cb-pair .ball-power { flex-direction: column; gap: 4px; align-items: stretch; }
-      .cb-pair .bp-header { flex-direction: column; align-items: flex-start;
-        gap: 0; margin-bottom: 6px; }
-      .cb-pair .bp-header .caption { display: none; }
-      .cb-pair .ball-power .chip { min-width: 0; padding: 4px 6px; width: 100%; }
-      .cb-pair .ball-power .chip .num { font-size: 13px; }
-      .cb-pair .ball-power .chip .sub { font-size: 9px; }
     }
     h1, h2, h3 { margin: 0; }
     h2 { font-size: 18px; }
@@ -193,13 +176,13 @@
     .numpad .clr { color: var(--warn); font-size: 15px; }
 
     /* Compass — fill the card. Uses % width + aspect-ratio so the dial
-       scales with whatever the card column gives it, capped at a
-       readable max so it doesn't get absurd on ultra-wide containers. */
+       scales with whatever the card column gives it. Higher max so the
+       dial is easier to tap with 24 directions. */
     .compass-wrap { display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 2px; padding: 4px 4px 6px; }
+      justify-content: center; gap: 2px; padding: 2px 4px 4px; }
     .compass {
-      width: 95%;
-      max-width: 320px;
+      width: 100%;
+      max-width: 420px;
       aspect-ratio: 1 / 1;
       height: auto;
       display: block;
@@ -773,27 +756,33 @@
       // cardinal labels (N/E/S/W) in red
       const cards = [["N",0,-82],["E",82,0],["S",0,82],["W",-82,0]];
       for (const [t,x,y] of cards) html += `<text class="cardinal-label" x="${x}" y="${y}">${t}</text>`;
-      // 24 arrows at 15° steps for finer-grained direction selection.
-      // Arrows narrower than the old 16-direction layout so neighbors
-      // don't visually crowd. The 4 cardinals get .cardinal (red).
+      // 24 arrows at 15° steps. Slightly chunkier than before so each
+      // wedge is easier to spot and the tap target reads visually.
+      // The 4 cardinals get .cardinal (red).
       for (let i = 0; i < 24; i++) {
         const deg = i * 15;
         const rad = deg * Math.PI / 180;
-        const tipR = 48;
-        const tx = Math.sin(rad) * tipR, ty = -Math.cos(rad) * tipR;
-        const baseR = 72;
-        const w = 5;
-        const perpX = Math.cos(rad) * w, perpY = Math.sin(rad) * w;
-        const b1x = Math.sin(rad) * baseR + perpX, b1y = -Math.cos(rad) * baseR + perpY;
-        const b2x = Math.sin(rad) * baseR - perpX, b2y = -Math.cos(rad) * baseR - perpY;
-        // selected-arrow tolerance: half of the 15° step
+        // Wedge geometry: thicker base, slightly longer than the old
+        // arrows. Tip nearer the center; base wider for visibility.
+        const tipR = 44;
+        const baseR = 78;
+        const w = 8;          // half-thickness at base
+        const tipW = 3;       // half-thickness at tip (slight taper)
+        const sin = Math.sin(rad), cos = Math.cos(rad);
+        const tx = sin * tipR, ty = -cos * tipR;
+        const perpX = cos, perpY = sin;
+        const t1x = tx + perpX * tipW,  t1y = ty + perpY * tipW;
+        const t2x = tx - perpX * tipW,  t2y = ty - perpY * tipW;
+        const b1x = sin * baseR + perpX * w, b1y = -cos * baseR + perpY * w;
+        const b2x = sin * baseR - perpX * w, b2y = -cos * baseR - perpY * w;
         const isOn = Math.abs(((inputs.dir - deg + 540) % 360) - 180) < 7.5;
         const isCardinal = (deg % 90) === 0;
         html += `<g class="arrow-btn ${isOn ? "on" : ""} ${isCardinal ? "cardinal" : ""}" data-deg="${deg}">`;
-        // Tap target sized so 24 around a 200px dial don't overlap.
-        const hx = Math.sin(rad) * 76, hy = -Math.cos(rad) * 76;
-        html += `<circle cx="${hx}" cy="${hy}" r="15" fill="transparent"/>`;
-        html += `<polygon points="${tx},${ty} ${b1x},${b1y} ${b2x},${b2y}"/>`;
+        // Bigger tap target so the dial is forgiving on touch.
+        const hx = sin * 78, hy = -cos * 78;
+        html += `<circle cx="${hx}" cy="${hy}" r="18" fill="transparent"/>`;
+        // Trapezoid: wide at base, slight taper to a near-point at the tip.
+        html += `<polygon points="${t1x},${t1y} ${b1x},${b1y} ${b2x},${b2y} ${t2x},${t2y}"/>`;
         html += `</g>`;
       }
       // center recenter button — tap to reset to side wind (90°)
