@@ -481,11 +481,11 @@
               </div>
               <div class="ball-power" id="ball-power">
                 <button class="chip" data-bp="0"><span class="num">0</span><span class="sub">none</span></button>
-                <button class="chip" data-bp="1"><span class="num">1</span><span class="sub">+3%</span></button>
-                <button class="chip" data-bp="2"><span class="num">2</span><span class="sub">+5%</span></button>
-                <button class="chip" data-bp="3"><span class="num">3</span><span class="sub">+7%</span></button>
-                <button class="chip" data-bp="4"><span class="num">4</span><span class="sub">+10%</span></button>
-                <button class="chip" data-bp="5"><span class="num">5</span><span class="sub">+13%</span></button>
+                <button class="chip" data-bp="1"><span class="num">2</span><span class="sub">+3%</span></button>
+                <button class="chip" data-bp="2"><span class="num">4</span><span class="sub">+5%</span></button>
+                <button class="chip" data-bp="3"><span class="num">6</span><span class="sub">+7%</span></button>
+                <button class="chip" data-bp="4"><span class="num">8</span><span class="sub">+10%</span></button>
+                <button class="chip" data-bp="5"><span class="num">10</span><span class="sub">+13%</span></button>
               </div>
             </div>
           </div>
@@ -545,11 +545,11 @@
         <h3 style="margin-top:14px;">Ball power</h3>
         <div class="ball-power" id="edit-ball-power">
           <button class="chip" data-bp="0">0</button>
-          <button class="chip" data-bp="1">1</button>
-          <button class="chip" data-bp="2">2</button>
-          <button class="chip" data-bp="3">3</button>
-          <button class="chip" data-bp="4">4</button>
-          <button class="chip" data-bp="5">5</button>
+          <button class="chip" data-bp="1">2</button>
+          <button class="chip" data-bp="2">4</button>
+          <button class="chip" data-bp="3">6</button>
+          <button class="chip" data-bp="4">8</button>
+          <button class="chip" data-bp="5">10</button>
         </div>
       </div>
       <div id="edit-slots"></div>
@@ -668,9 +668,13 @@
       return Math.abs(Math.sin(deg * Math.PI / 180));
     }
     function compassName(deg) {
-      const names = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-      const i = Math.round(((deg % 360) + 360) % 360 / 22.5) % 16;
-      return names[i];
+      // 8-point compass for the named cardinals/intercardinals + degrees
+      // for everything in between. With 24 arrows at 15° steps, the
+      // named slots cover 0/45/90/135/180/225/270/315; the rest get
+      // shown numerically.
+      const named = {0:"N", 45:"NE", 90:"E", 135:"SE", 180:"S", 225:"SW", 270:"W", 315:"NW"};
+      const d = ((Math.round(deg) % 360) + 360) % 360;
+      return named[d] || (d + "°");
     }
     // dir = the direction the wind is BLOWING toward (i.e., where the
     // in-game wind arrow points). So tapping N means "wind goes north",
@@ -736,6 +740,9 @@
       return `<img class="${cls}" src="${src}" alt="" loading="lazy"
         onerror="this.outerHTML='&lt;span class=&quot;${cls} club-img-empty&quot;&gt;&lt;/span&gt;'">`;
     }
+    // Display label for ball power index. Internally we store 0..5 to
+    // index into BALL_COEF; in-game the ball-power UI shows 0,2,4,6,8,10.
+    function ballPowerLabel(idx) { return idx * 2; }
 
     // ============================ Renderers ================================
     function renderPlay() {
@@ -766,23 +773,26 @@
       // cardinal labels (N/E/S/W) in red
       const cards = [["N",0,-82],["E",82,0],["S",0,82],["W",-82,0]];
       for (const [t,x,y] of cards) html += `<text class="cardinal-label" x="${x}" y="${y}">${t}</text>`;
-      // 16 arrows; the 4 cardinals get the .cardinal class so they're red
-      for (let i = 0; i < 16; i++) {
-        const deg = i * 22.5;
+      // 24 arrows at 15° steps for finer-grained direction selection.
+      // Arrows narrower than the old 16-direction layout so neighbors
+      // don't visually crowd. The 4 cardinals get .cardinal (red).
+      for (let i = 0; i < 24; i++) {
+        const deg = i * 15;
         const rad = deg * Math.PI / 180;
-        const tipR = 46;
+        const tipR = 48;
         const tx = Math.sin(rad) * tipR, ty = -Math.cos(rad) * tipR;
-        const baseR = 70;
-        const w = 8;
+        const baseR = 72;
+        const w = 5;
         const perpX = Math.cos(rad) * w, perpY = Math.sin(rad) * w;
         const b1x = Math.sin(rad) * baseR + perpX, b1y = -Math.cos(rad) * baseR + perpY;
         const b2x = Math.sin(rad) * baseR - perpX, b2y = -Math.cos(rad) * baseR - perpY;
-        const isOn = Math.abs(((inputs.dir - deg + 540) % 360) - 180) < 11.25;
+        // selected-arrow tolerance: half of the 15° step
+        const isOn = Math.abs(((inputs.dir - deg + 540) % 360) - 180) < 7.5;
         const isCardinal = (deg % 90) === 0;
         html += `<g class="arrow-btn ${isOn ? "on" : ""} ${isCardinal ? "cardinal" : ""}" data-deg="${deg}">`;
-        // big invisible hit box (~50px tap target)
-        const hx = Math.sin(rad) * 75, hy = -Math.cos(rad) * 75;
-        html += `<circle cx="${hx}" cy="${hy}" r="22" fill="transparent"/>`;
+        // Tap target sized so 24 around a 200px dial don't overlap.
+        const hx = Math.sin(rad) * 76, hy = -Math.cos(rad) * 76;
+        html += `<circle cx="${hx}" cy="${hy}" r="15" fill="transparent"/>`;
         html += `<polygon points="${tx},${ty} ${b1x},${b1y} ${b2x},${b2y}"/>`;
         html += `</g>`;
       }
@@ -948,7 +958,7 @@
               <span>${escapeHtml(b.name)}</span>
               ${isActive ? `<span class="pill on">active</span>` : ""}
             </div>
-            <div class="small dim">ball power ${b.ballPower} · total club power ${totalPower}</div>
+            <div class="small dim">ball power ${ballPowerLabel(b.ballPower)} · total club power ${totalPower}</div>
             <div class="bag-club-strip">${strip}</div>
             <div class="actions">
               <button onclick="GC.setActive('${b.id}')">${isActive ? "✓ active" : "Set active"}</button>
