@@ -115,7 +115,7 @@ rings_per_mph = actual_carry ÷ ( category_max
 | `rule_based_correction` | 0.9 for B52 / Grizzly at level ≥ 5, else 1.0 |
 | ball power coefficient | 1.00 / 1.03 / 1.05 / 1.07 / 1.10 / 1.13 — multiplies `actual_carry` |
 
-Final rings to pull = `rings_per_mph × wind_mph × direction_factor`. Direction factor is 1.0 for pure side wind, 0.6 for pure head/tail, interpolating with `0.6 + 0.4 × |sin(angle)|`.
+Final rings to pull = `rings_per_mph × wind_mph × direction_factor`, where `direction_factor = |sin(angle)|` (pure crosswind component): **1.0 at pure side wind, 0 at pure head/tail.** Head/tail wind extends/shortens carry distance — that's a slider/club adjustment, not a ring pull. The compass labels each direction so you can see at a glance whether to use rings (side) or slider (head/tail).
 
 **Sources:**
 - [wind.scala (canonical formula)](https://github.com/golf-clash-notebook/golf-clash-notebook.github.io/blob/dev/modules/site/src/main/scala/golfclash/notebook/wind.scala)

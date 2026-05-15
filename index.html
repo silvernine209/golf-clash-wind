@@ -192,15 +192,18 @@
     .numpad button:active { transform: scale(0.95); background: var(--accent-soft); }
     .numpad .clr { color: var(--warn); font-size: 15px; }
 
-    /* Compass — tight padding so the dial isn't floating in empty space */
+    /* Compass — fill the card. Uses % width + aspect-ratio so the dial
+       scales with whatever the card column gives it, capped at a
+       readable max so it doesn't get absurd on ultra-wide containers. */
     .compass-wrap { display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 2px; padding: 6px 6px 8px; }
+      justify-content: center; gap: 2px; padding: 4px 4px 6px; }
     .compass {
-      width: 170px; height: 170px; max-width: 70vw; max-height: 70vw;
+      width: 95%;
+      max-width: 320px;
+      aspect-ratio: 1 / 1;
+      height: auto;
       display: block;
     }
-    @media (min-width: 600px) { .compass { width: 180px; height: 180px; } }
-    @media (min-width: 900px) { .compass { width: 200px; height: 200px; } }
     .compass-hint { font-size: 10px; color: var(--text-dim); text-align: center;
       line-height: 1.25; margin-top: 2px; }
     .compass-dir { font-weight: 600; font-size: 13px; margin-top: 2px; }
@@ -654,18 +657,28 @@
       return (actualCarry * BALL_COEF[ballPower]) /
              (CATEGORY_MAX[category] * base * catMult * corr);
     }
+    // Rings compensate for the LATERAL component of wind only — the
+    // sideways push on the ball. Head/tail wind extends/shortens carry
+    // distance (handle with slider or club, not rings). So the factor
+    // is the pure crosswind component: |sin(angle)|.
+    //   pure side (90° / 270°) -> 1.0  (full ring adjustment)
+    //   pure head/tail (0° / 180°) -> 0  (no ring adjustment)
+    //   diagonal (45°) -> 0.707 (~70% of full effect)
     function directionFactor(deg) {
-      return 0.6 + 0.4 * Math.abs(Math.sin(deg * Math.PI / 180));
+      return Math.abs(Math.sin(deg * Math.PI / 180));
     }
     function compassName(deg) {
       const names = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
       const i = Math.round(((deg % 360) + 360) % 360 / 22.5) % 16;
       return names[i];
     }
+    // dir = the direction the wind is BLOWING toward (i.e., where the
+    // in-game wind arrow points). So tapping N means "wind goes north",
+    // i.e. the player faces north with wind at their back = TAILWIND.
     function dirCategory(deg) {
       const a = Math.abs(((deg + 180) % 360) - 180);
       const lateral = Math.abs(Math.sin(deg * Math.PI / 180));
-      if (lateral < 0.2) return a < 90 ? "headwind" : "tailwind";
+      if (lateral < 0.2) return a < 90 ? "tailwind" : "headwind";
       if (lateral > 0.8) return "side wind";
       return "quartering";
     }
@@ -738,9 +751,7 @@
 
       // mph display
       $("#mph-value").textContent = state.inputs.mph || "0";
-      $("#dir-mult").textContent = directionFactor(state.inputs.dir).toFixed(2);
-      $("#dir-name").textContent = dirCategory(state.inputs.dir);
-      $("#compass-dir").textContent = compassName(state.inputs.dir) + " · " + dirCategory(state.inputs.dir);
+      refreshDirReadouts();
       $("#pin-yd").value = state.inputs.pinYd || "";
 
       renderCompass();
@@ -1185,11 +1196,30 @@
       state.inputs.dir = deg;
       saveInputs();
       renderCompass();
-      $("#dir-mult").textContent = directionFactor(deg).toFixed(2);
-      $("#dir-name").textContent = dirCategory(deg);
-      $("#compass-dir").textContent = compassName(deg) + " · " + dirCategory(deg);
+      refreshDirReadouts();
       renderTable1();
       updateChipLiveValues();
+    }
+
+    // Update all direction-derived UI (factor display, category name,
+    // compass-dir below the dial, and the dynamic hint that switches
+    // between "tap = wind direction" and "head/tail = slider, not rings").
+    function refreshDirReadouts() {
+      const deg = state.inputs.dir;
+      const f = directionFactor(deg);
+      const cat = dirCategory(deg);
+      $("#dir-mult").textContent = f.toFixed(2);
+      $("#dir-name").textContent = cat;
+      $("#compass-dir").textContent = compassName(deg) + " · " + cat;
+      const hintEl = $(".compass-hint");
+      if (!hintEl) return;
+      if (cat === "headwind") {
+        hintEl.innerHTML = 'headwind · ball flies short — <strong>raise slider</strong> or longer club';
+      } else if (cat === "tailwind") {
+        hintEl.innerHTML = 'tailwind · ball flies long & rolls more — <strong>lower slider</strong>';
+      } else {
+        hintEl.textContent = "tap where the in-game wind arrow points · center = side";
+      }
     }
 
     function onBallPower(bp) {

@@ -102,11 +102,13 @@ def main():
         page.close()
 
         # 2. Play view with a Shot distance entered — shows the
-        # recommendation card and the highlighted club row.
+        # recommendation card and the highlighted club row. Uses side
+        # wind (deg=90, E) so the recommendation card has non-zero
+        # rings to demonstrate the feature.
         page = new_page(p, 1180, 760)
         seed_and_open(
             page, [SEED_BAG],
-            {"mph": "12", "dir": 180, "pinYd": "160", "sliders": {"Wedges": 60, "RoughIrons": 100, "SandWedges": 100}},
+            {"mph": "12", "dir": 90, "pinYd": "160", "sliders": {"Wedges": 60, "RoughIrons": 100, "SandWedges": 100}},
         )
         shoot(page, "02-play-with-pin")
         page.close()
