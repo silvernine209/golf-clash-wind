@@ -458,7 +458,7 @@
               <span class="mph-unit">MPH</span>
               <button id="clear-mph" class="clear-btn" title="Clear MPH" aria-label="Clear MPH">✕</button>
             </div>
-            <div class="dir-mult">direction × <span id="dir-mult" class="mono">1.00</span> · <span id="dir-name">side</span></div>
+            <div class="dir-mult" id="dir-summary">pull direction: <span id="dir-name">side wind</span></div>
             <div class="numpad" id="numpad">
               <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
               <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
@@ -657,16 +657,16 @@
       return (actualCarry * BALL_COEF[ballPower]) /
              (CATEGORY_MAX[category] * base * catMult * corr);
     }
-    // Rings compensate for the LATERAL component of wind only — the
-    // sideways push on the ball. Head/tail wind extends/shortens carry
-    // distance (handle with slider or club, not rings). So the factor
-    // is the pure crosswind component: |sin(angle)|.
-    //   pure side (90° / 270°) -> 1.0  (full ring adjustment)
-    //   pure head/tail (0° / 180°) -> 0  (no ring adjustment)
-    //   diagonal (45°) -> 0.707 (~70% of full effect)
-    function directionFactor(deg) {
-      return Math.abs(Math.sin(deg * Math.PI / 180));
-    }
+    // Rings represent total ball displacement from the aim point. Wind
+    // displaces the ball by a magnitude proportional to wind speed —
+    // independent of direction. Only the PULL DIRECTION differs:
+    //   side wind   -> pull rings sideways (into wind)
+    //   headwind    -> pull rings forward  (ball flies short; aim past)
+    //   tailwind    -> pull rings backward (ball flies long; aim short)
+    //   diagonal    -> at the corresponding angle
+    // So the multiplier is always 1; the compass + dir label tell the
+    // user which way to pull.
+    function directionFactor(_deg) { return 1; }
     function compassName(deg) {
       // 8-point compass for the named cardinals/intercardinals + degrees
       // for everything in between. With 24 arrows at 15° steps, the
@@ -831,7 +831,7 @@
               <span class="rec-arrow">→</span>
               <div class="rec-body">
                 <div class="rec-club"><strong>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</strong> · ${sliderPct.toFixed(0)}% slider</div>
-                <div class="rec-rings"><span class="rec-num mono">${fmt(rings)}</span> <span class="rec-unit">rings to pull</span> <span class="tiny dim">(${mph || 0} MPH × ${rPerMph.toFixed(2)} × ${dirF.toFixed(2)} dir)</span></div>
+                <div class="rec-rings"><span class="rec-num mono">${fmt(rings)}</span> <span class="rec-unit">rings to pull</span> <span class="tiny dim">(${mph || 0} MPH × ${rPerMph.toFixed(2)} rings/mph)</span></div>
               </div>
             </div>`;
           return { html, matchedCat: cat, exactRings: rings };
@@ -1211,22 +1211,31 @@
       updateChipLiveValues();
     }
 
-    // Update all direction-derived UI (factor display, category name,
-    // compass-dir below the dial, and the dynamic hint that switches
-    // between "tap = wind direction" and "head/tail = slider, not rings").
+    // Update direction-derived UI: category label in the wind card,
+    // compass-dir below the dial, and the dynamic hint that tells the
+    // user WHICH WAY to pull rings. Magnitude (the ring count itself)
+    // is always full because rings are the universal displacement
+    // compensator regardless of wind direction.
     function refreshDirReadouts() {
       const deg = state.inputs.dir;
-      const f = directionFactor(deg);
       const cat = dirCategory(deg);
-      $("#dir-mult").textContent = f.toFixed(2);
-      $("#dir-name").textContent = cat;
+      // pull-direction summary in the wind card
+      const dirName = $("#dir-name");
+      if (dirName) {
+        if (cat === "headwind")      dirName.textContent = "headwind — pull rings FORWARD (past target)";
+        else if (cat === "tailwind") dirName.textContent = "tailwind — pull rings BACK (short of target)";
+        else if (cat === "side wind") dirName.textContent = "side wind — pull rings SIDEWAYS (into wind)";
+        else                          dirName.textContent = cat + " — pull at the wind angle";
+      }
       $("#compass-dir").textContent = compassName(deg) + " · " + cat;
       const hintEl = $(".compass-hint");
       if (!hintEl) return;
       if (cat === "headwind") {
-        hintEl.innerHTML = 'headwind · ball flies short — <strong>raise slider</strong> or longer club';
+        hintEl.innerHTML = 'headwind · ball flies short — pull rings <strong>forward</strong> (or raise slider)';
       } else if (cat === "tailwind") {
-        hintEl.innerHTML = 'tailwind · ball flies long & rolls more — <strong>lower slider</strong>';
+        hintEl.innerHTML = 'tailwind · ball flies long — pull rings <strong>backward</strong> (or lower slider)';
+      } else if (cat === "side wind") {
+        hintEl.innerHTML = 'side wind · pull rings <strong>sideways into the wind</strong>';
       } else {
         hintEl.textContent = "tap where the in-game wind arrow points · center = side";
       }
