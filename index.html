@@ -454,7 +454,6 @@
             <div class="card compass-wrap" data-area="compass">
               <svg class="compass" id="compass" viewBox="-100 -100 200 200"></svg>
               <div class="compass-dir small dim" id="compass-dir">side wind</div>
-              <div class="compass-hint">tap = wind direction · center = side</div>
             </div>
 
             <div class="card bp-card" data-area="ballpower">
@@ -752,9 +751,12 @@
     function renderCompass() {
       const svg = $("#compass");
       const inputs = state.inputs;
-      let html = `<circle class="face" cx="0" cy="0" r="92"/>`;
-      // cardinal labels (N/E/S/W) in red
-      const cards = [["N",0,-82],["E",82,0],["S",0,82],["W",-82,0]];
+      // Slightly smaller face circle so the cardinal labels sit clear
+      // of the arrow bases.
+      let html = `<circle class="face" cx="0" cy="0" r="86"/>`;
+      // cardinal labels (N/E/S/W) outside the arrows so they're not
+      // blocked by the wedges. The arrows extend to r=78; labels at 92.
+      const cards = [["N",0,-92],["E",92,0],["S",0,92],["W",-92,0]];
       for (const [t,x,y] of cards) html += `<text class="cardinal-label" x="${x}" y="${y}">${t}</text>`;
       // 24 arrows at 15° steps. Slightly chunkier than before so each
       // wedge is easier to spot and the tap target reads visually.
@@ -1200,34 +1202,21 @@
       updateChipLiveValues();
     }
 
-    // Update direction-derived UI: category label in the wind card,
-    // compass-dir below the dial, and the dynamic hint that tells the
-    // user WHICH WAY to pull rings. Magnitude (the ring count itself)
-    // is always full because rings are the universal displacement
-    // compensator regardless of wind direction.
+    // Update direction-derived UI: pull-direction guidance in the wind
+    // card (#dir-name) and the compass-dir name + category below the
+    // dial. Magnitude is direction-independent because rings are a
+    // universal displacement compensator (pull forward/back/sideways).
     function refreshDirReadouts() {
       const deg = state.inputs.dir;
       const cat = dirCategory(deg);
-      // pull-direction summary in the wind card
       const dirName = $("#dir-name");
       if (dirName) {
-        if (cat === "headwind")      dirName.textContent = "headwind — pull rings FORWARD (past target)";
-        else if (cat === "tailwind") dirName.textContent = "tailwind — pull rings BACK (short of target)";
+        if (cat === "headwind")       dirName.textContent = "headwind — pull rings FORWARD (past target)";
+        else if (cat === "tailwind")  dirName.textContent = "tailwind — pull rings BACK (short of target)";
         else if (cat === "side wind") dirName.textContent = "side wind — pull rings SIDEWAYS (into wind)";
         else                          dirName.textContent = cat + " — pull at the wind angle";
       }
       $("#compass-dir").textContent = compassName(deg) + " · " + cat;
-      const hintEl = $(".compass-hint");
-      if (!hintEl) return;
-      if (cat === "headwind") {
-        hintEl.innerHTML = 'headwind · ball flies short — pull rings <strong>forward</strong> (or raise slider)';
-      } else if (cat === "tailwind") {
-        hintEl.innerHTML = 'tailwind · ball flies long — pull rings <strong>backward</strong> (or lower slider)';
-      } else if (cat === "side wind") {
-        hintEl.innerHTML = 'side wind · pull rings <strong>sideways into the wind</strong>';
-      } else {
-        hintEl.textContent = "tap where the in-game wind arrow points · center = side";
-      }
     }
 
     function onBallPower(bp) {
