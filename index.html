@@ -321,6 +321,12 @@
 
     /* Bags page */
     .bag-list { display: flex; flex-direction: column; gap: 10px; }
+    .settings-card { margin-bottom: 10px; }
+    .setting-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .setting-row input[type=checkbox] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex: 0 0 auto; }
+    .setting-meta { flex: 1; min-width: 0; }
+    .setting-name { font-size: 14px; font-weight: 600; }
+    .setting-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
     .bag-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
       padding: 12px; box-shadow: var(--shadow);
@@ -516,6 +522,16 @@
         <div class="title grow">Bags</div>
         <button class="icon-btn" id="new-bag" title="New bag">+</button>
       </header>
+      <div class="card settings-card">
+        <h3>Settings</h3>
+        <label class="setting-row">
+          <input type="checkbox" id="setting-asymmetric">
+          <div class="setting-meta">
+            <div class="setting-name">Asymmetric head/tail factor</div>
+            <div class="setting-desc">Off (default): rings are the same magnitude in every wind direction. On: applies headwind × 1.10, tailwind × 0.85, side × 1.00 — accounts for the fact that head/tail wind changes flight time vs side wind.</div>
+          </div>
+        </label>
+      </div>
       <div id="bag-list" class="bag-list"></div>
     </section>
 
@@ -636,6 +652,18 @@
     }
     function saveInputs() { LS.set("gc.lastInputs", state.inputs); }
 
+    // App-wide settings (independent of bags). Default off.
+    const SETTINGS_DEFAULTS = { asymmetric: false };
+    function getSettings() {
+      return Object.assign({}, SETTINGS_DEFAULTS, LS.get("gc.settings", {}));
+    }
+    function getSetting(key) { return getSettings()[key]; }
+    function setSetting(key, value) {
+      const s = getSettings();
+      s[key] = value;
+      LS.set("gc.settings", s);
+    }
+
     // ============================== Formula ================================
     function ringsPerMph(category, power, accuracy, actualCarry, clubName, level, ballPower) {
       const base = 3 - accuracy / 50;
@@ -644,16 +672,28 @@
       return (actualCarry * BALL_COEF[ballPower]) /
              (CATEGORY_MAX[category] * base * catMult * corr);
     }
-    // Rings represent total ball displacement from the aim point. Wind
-    // displaces the ball by a magnitude proportional to wind speed —
-    // independent of direction. Only the PULL DIRECTION differs:
-    //   side wind   -> pull rings sideways (into wind)
-    //   headwind    -> pull rings forward  (ball flies short; aim past)
-    //   tailwind    -> pull rings backward (ball flies long; aim short)
-    //   diagonal    -> at the corresponding angle
-    // So the multiplier is always 1; the compass + dir label tell the
-    // user which way to pull.
-    function directionFactor(_deg) { return 1; }
+    // Rings represent total ball displacement from the aim point.
+    // DEFAULT: magnitude is direction-independent (factor = 1), and the
+    // compass + dir label only tell the user which way to pull.
+    //
+    // OPTIONAL ("asymmetric head/tail factor" in Settings): account for
+    // the fact that head/tail wind changes flight time differently than
+    // side wind. Tailwind shortens flight (less wind effect → smaller
+    // factor); headwind lengthens flight (more wind effect → bigger
+    // factor). Interpolated by s²+c² = 1:
+    //     pure side   -> 1.00
+    //     pure tail   -> 0.85
+    //     pure head   -> 1.10
+    //     45° tail-side -> ~0.93
+    //     45° head-side -> ~1.05
+    function directionFactor(deg) {
+      if (!getSetting('asymmetric')) return 1;
+      const rad = deg * Math.PI / 180;
+      const c = Math.cos(rad);
+      const s = Math.sin(rad);
+      const headTail = c > 0 ? 0.85 : 1.10; // c>0 = tailwind side
+      return s*s * 1.0 + c*c * headTail;
+    }
     function compassName(deg) {
       // 8-point compass for the named cardinals/intercardinals + degrees
       // for everything in between. With 24 arrows at 15° steps, the
@@ -805,6 +845,8 @@
       if (!pin) return { html: "", matchedCat: null, exactRings: null };
       const mph = parseNum(state.inputs.mph);
       const dirF = directionFactor(state.inputs.dir);
+      // Only show the direction factor in the breakdown when it isn't 1.
+      const dirBreakdown = Math.abs(dirF - 1) > 0.001 ? ` × ${dirF.toFixed(2)} dir` : "";
 
       // Normal clubs: iterate shortest-first, so an exact boundary distance
       // (e.g. 166yd = Wood max) picks the SHORTER club (Wood at 100% slider)
@@ -827,7 +869,7 @@
               <span class="rec-arrow">→</span>
               <div class="rec-body">
                 <div class="rec-club"><strong>${DISPLAY[cat]} — ${escapeHtml(s.name)} ${s.level}</strong> · ${sliderPct.toFixed(0)}% slider</div>
-                <div class="rec-rings"><span class="rec-num mono">${fmt(rings)}</span> <span class="rec-unit">rings to pull</span> <span class="tiny dim">(${mph || 0} MPH × ${rPerMph.toFixed(2)} rings/mph)</span></div>
+                <div class="rec-rings"><span class="rec-num mono">${fmt(rings)}</span> <span class="rec-unit">rings to pull</span> <span class="tiny dim">(${mph || 0} MPH × ${rPerMph.toFixed(2)} rings/mph${dirBreakdown})</span></div>
               </div>
             </div>`;
           return { html, matchedCat: cat, exactRings: rings };
@@ -963,6 +1005,12 @@
             </div>
           </div>`;
       }).join("");
+      // Settings checkbox
+      const settingEl = $("#setting-asymmetric");
+      if (settingEl) {
+        settingEl.checked = getSetting('asymmetric');
+        settingEl.onchange = (e) => setSetting('asymmetric', e.target.checked);
+      }
     }
 
     function renderEdit() {
